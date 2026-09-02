@@ -64,7 +64,12 @@ inline void checkPowerSwitch() {
                     trackingPressTime = true;
                 }
 
-                if (machineState == kStandby) {
+                // The TOGGLE branch above checks `kStandby || kPidDisabled`, but this
+                // one only looked at kStandby. Switching the machine off via MQTT or
+                // the web UI (pidON = false) lands in kPidDisabled (display on,
+                // showing "Standby"), so a button press fell through to the else
+                // branch and shut down into kStandby instead of waking the machine.
+                if (machineState == kStandby || machineState == kPidDisabled) {
                     machineState = kPidNormal;
                     resetStandbyTimer(kPidNormal);
                     setRuntimePidState(true);
