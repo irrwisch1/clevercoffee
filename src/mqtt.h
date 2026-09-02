@@ -660,7 +660,6 @@ inline int sendHASSIODiscoveryMsg() {
 
     // Always published devices
     failures += publishDiscovery(GenerateSensorDevice("machineState", "Machine State", "", "enum", getMachineStateOptions()));
-
     // Why the machine last restarted. Published retained and only from here, i.e. once
     // per connection: the value never changes while running, and the log line at boot is
     // unreachable in practice -- the telnet logger keeps no backlog and only serves an
@@ -670,6 +669,7 @@ inline int sendHASSIODiscoveryMsg() {
 
     failures += publishDiscovery(GenerateSensorDevice("freeHeap", "Free Heap", "B", "data_size"));
     failures += publishDiscovery(GenerateSensorDevice("maxAllocHeap", "Largest Free Block", "B", "data_size"));
+    failures += publishDiscovery(GenerateSensorDevice("rssi", "WiFi Signal", "dBm", "signal_strength"));
     failures += publishDiscovery(GenerateSensorDevice("temperature", "Boiler Temperature", "°C", "temperature"));
     failures += publishDiscovery(GenerateSensorDevice("heaterPower", "Heater Power", "%", "power_factor"));
 
