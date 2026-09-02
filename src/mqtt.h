@@ -74,11 +74,24 @@ inline void setupMqtt() {
 }
 
 /**
- * @brief Check if MQTT is connected, if not reconnect. Abort function if offline or brew is running
+ * @brief Ask the MQTT task to publish on its next pass instead of publishing here.
+ *
+ * Callers outside the MQTT task (e.g. the AsyncWebServer) must not touch PubSubClient.
+ * Clearing the rate-limit stamp makes the task publish on its next pass.
+ */
+inline void requestMqttPublish() {
+    previousMillisMQTT = 0;
+}
+
+/**
+ * @brief Check if MQTT is connected, if not reconnect. Abort function if offline
  *      MQTT is also using maxWifiReconnects!
  */
 inline void checkMQTT() {
-    if (offlineMode || checkBrewActive()) {
+    // No brew guard needed anymore: it only existed because mqtt.connect() is
+    // blocking and would have stalled the main loop during a shot. This runs in
+    // the MQTT task now, so reconnecting mid-shot does not affect the loop.
+    if (offlineMode) {
         return;
     }
 
@@ -239,6 +252,20 @@ inline void assignMQTTParam(char* param, double value) {
     }
 }
 
+// Incoming MQTT commands are handed to the main loop through this queue rather than
+// being applied in the MQTT task: mqtt.loop() invokes mqtt_callback() in the task's
+// context, and assignMQTTParam() writes ParameterRegistry state from there, which must
+// not happen concurrently with the main loop reading it. Outgoing telemetry is fine to
+// read directly from the task -- those are plain numbers, published rounded and only on
+// change, so a torn read would at worst be a single wrong displayed value.
+struct MqttCommand {
+        char param[120];
+        double value;
+};
+
+inline QueueHandle_t mqttCmdQueue = nullptr;
+inline TaskHandle_t mqttTaskHandle = nullptr;
+
 /**
  * @brief MQTT Callback Function: set Parameters through MQTT
  */
@@ -265,7 +292,37 @@ inline void mqtt_callback(const char* topic, const byte* data, const unsigned in
 
     // convert received string value to double assuming it's a number
     sscanf(data_str, "%lf", &data_double);
-    assignMQTTParam(configVar, data_double);
+
+    // Runs in the MQTT task -> hand the command over to the main loop instead of
+    // writing ParameterRegistry state here. Timeout 0, so this never blocks.
+    if (mqttCmdQueue != nullptr) {
+        MqttCommand cmd_msg;
+        snprintf(cmd_msg.param, sizeof(cmd_msg.param), "%s", configVar);
+        cmd_msg.value = data_double;
+
+        if (xQueueSend(mqttCmdQueue, &cmd_msg, 0) != pdTRUE) {
+            LOGF(WARNING, "MQTT command queue full, dropped: %s", configVar);
+        }
+    }
+    else {
+        // Queue not created (task not running) -- apply directly
+        assignMQTTParam(configVar, data_double);
+    }
+}
+
+/**
+ * @brief Apply the MQTT commands received by the task. Must be called from the main loop.
+ */
+inline void processMqttCommands() {
+    if (mqttCmdQueue == nullptr) {
+        return;
+    }
+
+    MqttCommand cmd_msg;
+
+    while (xQueueReceive(mqttCmdQueue, &cmd_msg, 0) == pdTRUE) {
+        assignMQTTParam(cmd_msg.param, cmd_msg.value);
+    }
 }
 
 /**
