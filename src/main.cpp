@@ -94,7 +94,7 @@ U8G2* u8g2 = nullptr;
 bool featureFullscreenBrewTimer = false;
 bool featureFullscreenManualFlushTimer = false;
 bool featureFullscreenHotWaterTimer = false;
-double postBrewTimerDuration = POST_BREW_TIMER_DURATION;
+float postBrewTimerDuration = POST_BREW_TIMER_DURATION;
 bool featureHeatingLogo = false;
 
 // WiFi
@@ -181,36 +181,36 @@ String lastHotWaterStateDebug = "off";
 // system parameters
 bool pidON = false;
 bool usePonM = false;
-double brewSetpoint = SETPOINT;
-double brewTempOffset = TEMPOFFSET;
-double setpoint = brewSetpoint;
-double steamSetpoint = STEAMSETPOINT;
-double steamKp = STEAMKP;
-double aggKp = AGGKP;
-double aggTn = AGGTN;
-double aggTv = AGGTV;
-double aggIMax = AGGIMAX;
-double emaFactor = EMA_FACTOR;
+float brewSetpoint = SETPOINT;
+float brewTempOffset = TEMPOFFSET;
+float setpoint = brewSetpoint;
+float steamSetpoint = STEAMSETPOINT;
+float steamKp = STEAMKP;
+float aggKp = AGGKP;
+float aggTn = AGGTN;
+float aggTv = AGGTV;
+float aggIMax = AGGIMAX;
+float emaFactor = EMA_FACTOR;
 
 // PID - values for offline brew detection
 bool useBDPID = false;
-double aggbKp = AGGBKP;
-double aggbTn = AGGBTN;
-double aggbTv = AGGBTV;
-double aggbKi = (aggbTn == 0) ? 0 : aggbKp / aggbTn;
-double aggbKd = aggbTv * aggbKp;
-double aggKi = (aggTn == 0) ? 0 : aggKp / aggTn;
-double aggKd = aggTv * aggKp;
+float aggbKp = AGGBKP;
+float aggbTn = AGGBTN;
+float aggbTv = AGGBTV;
+float aggbKi = (aggbTn == 0) ? 0 : aggbKp / aggbTn;
+float aggbKd = aggbTv * aggbKp;
+float aggKi = (aggTn == 0) ? 0 : aggKp / aggTn;
+float aggKd = aggTv * aggKp;
 
-double brewPidDelay = BREW_PID_DELAY; // Time PID will be disabled after brew started
+float brewPidDelay = BREW_PID_DELAY; // Time PID will be disabled after brew started
 
 bool standbyModeOn = false;
-double standbyModeTime = STANDBY_MODE_TIME;
+float standbyModeTime = STANDBY_MODE_TIME;
 
 #include "standby.h"
 
 // Variables to hold PID values (Temp input, Heater output)
-double temperature, pidOutput;
+float temperature, pidOutput;
 bool steamON = false;
 bool steamFirstON = false;
 
@@ -221,7 +221,7 @@ PID bPID(&temperature, &pidOutput, &setpoint, aggKp, aggKi, aggKd, 1, DIRECT);
 
 // Other variables
 boolean emergencyStop = false;                // Emergency stop if temperature is too high
-constexpr double EmergencyStopTemp = 145;     // Temp EmergencyStopTemp
+constexpr float EmergencyStopTemp = 145;      // Temp EmergencyStopTemp
 float inX = 0, inY = 0, inOld = 0, inSum = 0; // used for filterPressureValue()
 boolean setupDone = false;
 
@@ -233,8 +233,8 @@ Timer loopWaterTank(&checkWaterTank, 200); // Check water tank level every 200 m
 unsigned long previousMillistemp; // initialisation at the end of init()
 unsigned long previousMillisTimer;
 
-double setpointTemp;
-double previousInput = 0;
+float setpointTemp;
+float previousInput = 0;
 
 // Embedded HTTP Server
 #include "embeddedWebserver.h"

@@ -95,7 +95,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.ema_factor",
         "PID EMA Factor",
-        kDouble,
+        kFloat,
         sPIDSection,
         111,
         &emaFactor,
@@ -107,7 +107,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.regular.kp",
         "PID Kp",
-        kDouble,
+        kFloat,
         sPIDSection,
         112,
         &aggKp,
@@ -120,7 +120,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.regular.tn",
         "PID Tn (=Kp/Ki)",
-        kDouble,
+        kFloat,
         sPIDSection,
         113,
         &aggTn,
@@ -133,7 +133,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.regular.tv",
         "PID Tv (=Kd/Kp)",
-        kDouble,
+        kFloat,
         sPIDSection,
         114,
         &aggTv,
@@ -146,7 +146,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.regular.i_max",
         "PID Integrator Max",
-        kDouble,
+        kFloat,
         sPIDSection,
         115,
         &aggIMax,
@@ -159,7 +159,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "pid.steam.kp",
         "Steam Kp",
-        kDouble,
+        kFloat,
         sPIDSection,
         116,
         &steamKp,
@@ -172,7 +172,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "TEMP",
         "Temperature",
-        kDouble,
+        kFloat,
         sTempSection,
         200,
         &temperature,
@@ -185,7 +185,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "brew.setpoint",
         "Setpoint (°C)",
-        kDouble,
+        kFloat,
         sTempSection,
         201,
         &brewSetpoint,
@@ -197,7 +197,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "brew.temp_offset",
         "Offset (°C)",
-        kDouble,
+        kFloat,
         sTempSection,
         202,
         &brewTempOffset,
@@ -209,7 +209,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "steam.setpoint",
         "Steam Setpoint (°C)",
-        kDouble,
+        kFloat,
         sTempSection,
         203,
         &steamSetpoint,
@@ -412,7 +412,7 @@ void ParameterRegistry::initialize(Config& config) {
         addNumericConfigParam<double>(
             "brew.pid_delay",
             "Brew PID Delay (s)",
-            kDouble,
+            kFloat,
             sBrewPidSection,
             711,
             &brewPidDelay,
@@ -424,7 +424,7 @@ void ParameterRegistry::initialize(Config& config) {
         addNumericConfigParam<double>(
             "pid.bd.kp",
             "BD Kp",
-            kDouble,
+            kFloat,
             sBrewPidSection,
             712,
             &aggbKp,
@@ -436,7 +436,7 @@ void ParameterRegistry::initialize(Config& config) {
         addNumericConfigParam<double>(
             "pid.bd.tn",
             "BD Tn (=Kp/Ki)",
-            kDouble,
+            kFloat,
             sBrewPidSection,
             713,
             &aggbTn,
@@ -448,7 +448,7 @@ void ParameterRegistry::initialize(Config& config) {
         addNumericConfigParam<double>(
             "pid.bd.tv",
             "BD Tv (=Kd/Kp)",
-            kDouble,
+            kFloat,
             sBrewPidSection,
             714,
             &aggbTv,
@@ -509,7 +509,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam<double>(
         "standby.time",
         "Standby Time",
-        kDouble,
+        kFloat,
         sPowerSection,
         802,
         &standbyModeTime,
@@ -598,7 +598,7 @@ void ParameterRegistry::initialize(Config& config) {
     addNumericConfigParam(
         "display.post_brew_timer_duration",
         "Post Brew Timer Duration (s)",
-        kDouble,
+        kFloat,
         sDisplaySection,
         908,
         &postBrewTimerDuration,

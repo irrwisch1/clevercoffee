@@ -9,7 +9,7 @@
 
 #include "hardware/Relay.h"
 
-extern double pidOutput;
+extern float pidOutput;
 
 unsigned int isrCounter = 0;  // counter for ISR
 unsigned int isrWatchdog = 0; // test to verify ISR active
