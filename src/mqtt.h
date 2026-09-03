@@ -697,6 +697,12 @@ inline int sendHASSIODiscoveryMsg() {
         failures += publishDiscovery(GenerateNumberDevice("targetBrewWeight", "Brew Weight Target", TARGET_BREW_WEIGHT_MIN, TARGET_BREW_WEIGHT_MAX, 0.1, "g"));
     }
 
+    if (config.get<bool>("hardware.sensors.watertank.enabled")) {
+        // Same topic and display name as upstream PR #635, which exposes this as a
+        // proper binary_sensor -- so switching to that later only changes the domain.
+        failures += publishDiscovery(GenerateSensorDevice("waterTankFull", "Water Tank", "", ""));
+    }
+
     if (config.get<bool>("hardware.sensors.pressure.enabled")) {
         failures += publishDiscovery(GenerateSensorDevice("pressure", "Pressure", "bar", "pressure"));
     }
