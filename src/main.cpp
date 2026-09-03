@@ -361,6 +361,7 @@ void checkWifi() {
                 LOGF(INFO, "Attempting WIFI (re-)connection: %i", wifiReconnects);
                 wm.disconnect();
                 WiFi.begin();
+                WiFi.setSleep(false); // keep power save off across reconnects
             }
 
             delay(20);                // give WIFI some time to connect
@@ -839,6 +840,15 @@ void wiFiSetup() {
         IPAddress ip = WiFi.localIP();
         snprintf(ipStr, sizeof(ipStr), "%u.%u.%u.%u", ip[0], ip[1], ip[2], ip[3]);
         LOGF(INFO, "WiFi connected - IP = %s", ipStr);
+
+        // Disable WiFi power save. With the Arduino default (WIFI_PS_MIN_MODEM) the ESP
+        // sleeps between DTIM beacons, so the AP buffers packets and round-trip times
+        // climb into the hundreds of milliseconds. Measured on one machine: 446 ms
+        // average with peaks of 1.4 s, while the router itself answered in 3 ms. That is
+        // enough to run MQTT publishes into their socket timeout, which drops the
+        // connection -- the machine then sits offline for minutes and remote commands
+        // are lost. Costs roughly 25 mA, which is nothing next to a 1100 W boiler.
+        WiFi.setSleep(false);
 
         byte mac[6];
         WiFi.macAddress(mac);
