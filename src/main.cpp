@@ -16,6 +16,7 @@
 #include <PID_v1.h>  // for PID calculation
 #include <U8g2lib.h> // i2c display
 #include <WiFiManager.h>
+#include <esp_system.h>
 #include <os.h>
 
 // Includes
@@ -118,6 +119,13 @@ unsigned long previousMillisPressure; // initialisation at the end of init()
 
 // timing flags
 bool timingDebugActive = false;
+
+// Worst-case duration of a single main loop pass, in milliseconds. Diagnostic for
+// loop stalls: anything blocking in the loop (network I/O, flash writes) shows up
+// here as a spike. debugTimingLoop() already measures the loop, but only while
+// timingDebugActive is set and only into the telnet log, which is gone after a
+// reboot. Read-and-reset on publish, so each value is the peak since the last one.
+volatile unsigned long maxLoopTime = 0;
 bool includeDisplayInLogs = false;
 bool displayBufferReady = false;
 bool displayUpdateRunning = false;
@@ -167,6 +175,7 @@ void loopLED();
 void checkWaterTank();
 void printMachineState();
 char const* machinestateEnumToString(MachineState machineState);
+const char* bootResetReasonString();
 inline std::vector<const char*> getMachineStateOptions();
 float filterPressureValue(float input);
 int writeSysParamsToMQTT(bool continueOnError);
@@ -995,12 +1004,61 @@ void mqttTask(void* pvParameters) {
     }
 }
 
+/**
+ * @brief Translate the reset reason into something readable
+ *
+ * Without this the log gives no clue why the machine restarted, which makes a
+ * spontaneous reboot nearly impossible to tell apart from a crash, a watchdog
+ * or a brownout after the fact.
+ */
+// Kept so it can be published once MQTT is up: the log line alone is unreachable,
+// because the telnet logger only serves an already-connected client and keeps no
+// backlog -- by the time anyone can connect, the boot message is long gone.
+esp_reset_reason_t bootResetReason = ESP_RST_UNKNOWN;
+
+const char* resetReasonToString(const esp_reset_reason_t reason) {
+    switch (reason) {
+        case ESP_RST_POWERON:
+            return "power-on";
+        case ESP_RST_EXT:
+            return "external reset pin";
+        case ESP_RST_SW:
+            return "software restart";
+        case ESP_RST_PANIC:
+            return "panic or unhandled exception";
+        case ESP_RST_INT_WDT:
+            return "interrupt watchdog";
+        case ESP_RST_TASK_WDT:
+            return "task watchdog";
+        case ESP_RST_WDT:
+            return "other watchdog";
+        case ESP_RST_DEEPSLEEP:
+            return "wake from deep sleep";
+        case ESP_RST_BROWNOUT:
+            return "brownout";
+        case ESP_RST_SDIO:
+            return "SDIO";
+        default:
+            return "unknown";
+    }
+}
+
+/**
+ * @brief Reset reason of this boot, as text -- published once MQTT is up
+ */
+const char* bootResetReasonString() {
+    return resetReasonToString(bootResetReason);
+}
+
 void setup() {
     // Start serial console
     Serial.begin(115200);
 
     // Initialize the logger
     Logger::init(23);
+
+    bootResetReason = esp_reset_reason();
+    LOGF(INFO, "Reset reason: %s", resetReasonToString(bootResetReason));
 
     if (!config.begin()) {
         LOG(ERROR, "Failed to load config from filesystem!");
@@ -1176,6 +1234,25 @@ void setup() {
             mqttSensors["currentKi"] = [] { return bPID.GetKi(); };
             mqttSensors["currentKd"] = [] { return bPID.GetKd(); };
             mqttSensors["machineState"] = [] { return machineState; };
+            // Link quality is useful to have in HA: the ESP often sits inside the
+            // machine's metal body, where the signal can be marginal, and dropouts
+            // are otherwise hard to tell apart from other MQTT problems.
+            mqttSensors["rssi"] = [] { return (double)WiFi.RSSI(); };
+
+            // Same two values ESPHome's debug component exposes: total free heap plus the
+            // largest allocatable block. The pair is what makes a leak diagnosable -- free
+            // heap alone falls under fragmentation too, while a shrinking largest block at
+            // constant free heap points at fragmentation rather than a leak. Until now
+            // these only went to the telnet log, which keeps no backlog and is therefore
+            // gone exactly when it would be needed.
+            mqttSensors["freeHeap"] = [] { return (double)ESP.getFreeHeap(); };
+            mqttSensors["maxAllocHeap"] = [] { return (double)heap_caps_get_largest_free_block(MALLOC_CAP_DEFAULT); };
+
+            mqttSensors["maxLoopTime"] = [] {
+                const unsigned long peak = maxLoopTime;
+                maxLoopTime = 0;
+                return (double)peak;
+            };
 
             if (config.get<bool>("hardware.switches.brew.enabled")) {
                 mqttVars["aggbKp"] = "pid.bd.kp";
@@ -1365,6 +1442,19 @@ void setup() {
 }
 
 void loop() {
+    {
+        static unsigned long lastLoopStart = 0;
+        const unsigned long now = millis();
+
+        if (lastLoopStart != 0) {
+            if (const unsigned long duration = now - lastLoopStart; duration > maxLoopTime) {
+                maxLoopTime = duration;
+            }
+        }
+
+        lastLoopStart = now;
+    }
+
     // Accept potential connections for remote logging
     Logger::update();
 
