@@ -667,6 +667,9 @@ inline int sendHASSIODiscoveryMsg() {
     // already-connected client, so nobody is listening that early.
     failures += publishDiscovery(GenerateSensorDevice("resetReason", "Reset Reason", "", ""));
     mqtt_publish("resetReason", bootResetReasonString(), true);
+
+    failures += publishDiscovery(GenerateSensorDevice("freeHeap", "Free Heap", "B", "data_size"));
+    failures += publishDiscovery(GenerateSensorDevice("maxAllocHeap", "Largest Free Block", "B", "data_size"));
     failures += publishDiscovery(GenerateSensorDevice("temperature", "Boiler Temperature", "°C", "temperature"));
     failures += publishDiscovery(GenerateSensorDevice("heaterPower", "Heater Power", "%", "power_factor"));
 
