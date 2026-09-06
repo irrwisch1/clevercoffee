@@ -671,6 +671,7 @@ inline int sendHASSIODiscoveryMsg() {
     failures += publishDiscovery(GenerateSensorDevice("maxAllocHeap", "Largest Free Block", "B", "data_size"));
     failures += publishDiscovery(GenerateSensorDevice("rssi", "WiFi Signal", "dBm", "signal_strength"));
     failures += publishDiscovery(GenerateSensorDevice("maxLoopTime", "Max Loop Time", "ms", ""));
+    failures += publishDiscovery(GenerateSensorDevice("standbyModeTimeRemaining", "Standby Time Remaining", "s", "duration"));
     failures += publishDiscovery(GenerateSensorDevice("temperature", "Boiler Temperature", "°C", "temperature"));
     failures += publishDiscovery(GenerateSensorDevice("heaterPower", "Heater Power", "%", "power_factor"));
 
