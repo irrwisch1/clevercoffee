@@ -50,6 +50,10 @@ class Logger {
          */
         static bool update();
 
+        // fork-only: zweites Telnet-Ziel mit History (siehe Logger.cpp)
+        static void tlogBegin();
+        static void tlogLoop();
+
         /**
          * @brief Get the port this logger communicating over
          *

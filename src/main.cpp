@@ -1057,6 +1057,10 @@ void setup() {
     // Initialize the logger
     Logger::init(23);
 
+    // fork-only: zweites Telnet-Ziel auf 2324, das die letzten Zeilen puffert
+    // (vor dem Reset-Reason-Log, damit auch das im Ringpuffer landet)
+    Logger::tlogBegin();
+
     bootResetReason = esp_reset_reason();
     LOGF(INFO, "Reset reason: %s", resetReasonToString(bootResetReason));
 
@@ -1463,6 +1467,7 @@ void loop() {
 
     // Accept potential connections for remote logging
     Logger::update();
+    Logger::tlogLoop();
 
     // Update water tank sensor
     loopWaterTank();
