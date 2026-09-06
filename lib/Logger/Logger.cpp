@@ -3,6 +3,35 @@
 
 #include "Logger.h"
 
+// --- fork-only: TLog als zweites Telnet-Ziel MIT History-Ringpuffer ---
+// Der eigene Logger puffert nichts und schreibt nur an einen bereits verbundenen
+// Client -- genau deshalb war nach dem Vorfall am 06.09. nicht mehr feststellbar,
+// was vor dem Ausfall passiert war. TLog haelt die letzten Zeilen in einem
+// Ringpuffer und spielt sie beim Verbinden nachtraeglich aus.
+// Laeuft auf Port 2324 PARALLEL zum bestehenden Logger (Port 23), damit an dessen
+// Verhalten nichts geaendert wird. Nicht fuer Upstream gedacht.
+#include <TLog.h>
+#include <TelnetSerialStream.h>
+
+static TelnetSerialStream tlogTelnet = TelnetSerialStream(2324);
+static bool tlogStarted = false;
+
+void Logger::tlogBegin() {
+    if (tlogStarted) {
+        return;
+    }
+
+    tlogStarted = true;
+    Log.addPrintStream(std::make_shared<TelnetSerialStream>(tlogTelnet));
+    Log.begin();
+}
+
+void Logger::tlogLoop() {
+    if (tlogStarted) {
+        Log.loop();
+    }
+}
+
 int logLevel;
 
 Logger::Logger(const uint16_t port) :
@@ -61,6 +90,15 @@ uint16_t Logger::getPort() {
 void Logger::log(const Level level, const String& file, const __FlashStringHelper* function, uint32_t line, const char* logmsg) {
     char time[12];
     current_time(time);
+
+    // fork-only: unabhaengig vom Telnet-Client in den History-Ringpuffer
+    if (tlogStarted) {
+        Log.print(time);
+        Log.print(get_level_identifier(level).c_str());
+        Log.print(" ");
+        Log.print(logmsg);
+        Log.println();
+    }
 
     if (WiFi.status() == WL_CONNECTED && client_.connected()) {
         client_.print(time);

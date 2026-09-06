@@ -905,6 +905,9 @@ void setup() {
     // Initialize the logger
     Logger::init(23);
 
+    // fork-only: zweites Telnet-Ziel auf 2324, das die letzten Zeilen puffert
+    Logger::tlogBegin();
+
     if (!config.begin()) {
         LOG(ERROR, "Failed to load config from filesystem!");
     }
@@ -1220,6 +1223,7 @@ void setup() {
 void loop() {
     // Accept potential connections for remote logging
     Logger::update();
+    Logger::tlogLoop();
 
     // Update water tank sensor
     loopWaterTank();
