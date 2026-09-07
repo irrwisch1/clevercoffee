@@ -1313,6 +1313,12 @@ void setup() {
                 return (double)peak;
             };
 
+            if (config.get<bool>("hardware.sensors.watertank.enabled")) {
+                // An empty tank is otherwise only visible indirectly through
+                // machineState ("Water Tank Empty"). 1 = full, 0 = empty.
+                mqttSensors["waterTankFull"] = [] { return waterTankFull ? 1.0 : 0.0; };
+            }
+
             if (config.get<bool>("hardware.switches.brew.enabled")) {
                 mqttVars["aggbKp"] = "pid.bd.kp";
                 mqttVars["aggbTn"] = "pid.bd.tn";
