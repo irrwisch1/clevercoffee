@@ -45,6 +45,7 @@ inline void checkPowerSwitch() {
             }
             else {
                 if (machineState != kStandby) {
+                    LOG(INFO, "Power switch turned off, entering standby");
                     performSafeShutdown();
                     machineState = kStandby;
                     standbyModeRemainingTimeMillis = 0;
@@ -79,6 +80,7 @@ inline void checkPowerSwitch() {
                     }
                 }
                 else {
+                    LOG(INFO, "Power button pressed, entering standby");
                     performSafeShutdown();
                     machineState = kStandby;
 
