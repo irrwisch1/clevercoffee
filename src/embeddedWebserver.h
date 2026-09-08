@@ -688,6 +688,10 @@ inline void serverSetup() {
 
         const bool removed = LittleFS.remove("/config.json");
 
+        // Also drop the NVS mirror, otherwise the next boot restores exactly the
+        // settings this is supposed to wipe.
+        Config::clearMirror();
+
         request->send(200, "text/plain", removed ? "Factory reset. Restarting..." : "Could not delete config.json. Restarting...");
 
         if (u8g2 != nullptr) {
