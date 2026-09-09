@@ -1,11 +1,23 @@
-// Collapse is imported for its side effect, not for the name: importing the module is
-// what registers Bootstrap's click delegation for data-bs-toggle="collapse", which the
-// navbar toggle depends on. Popover is constructed by hand further down.
+// Importing Collapse also registers Bootstrap's click delegation for
+// data-bs-toggle="collapse", which the navbar toggle button depends on. Popover is
+// constructed by hand further down.
 import { createApp } from '../vendor/vue.esm.js'
 import { Collapse, Popover } from '../vendor/bootstrap.esm.js'
-void Collapse // side-effect import; keep the binding
+import { initCharts } from './temp.js'
 
-const appCreatedEvent = new CustomEvent('appCreated')
+// The five tabs of the single page, and what each one needs from /parameters.
+// null means the tab shows no parameters and needs no request.
+//
+// Home names its six: the section ranges they live in hold twelve, so asking by
+// section fetched four times as much as it shows -- and saving on that tab then wrote
+// all twelve back.
+const tabQueries = {
+    home: 'names=pid.enabled,brew.setpoint,STEAM_MODE,BACKFLUSH_ON,TARE_ON,CALIBRATION_ON',
+    settings: 'filter=behavior',
+    hardware: 'filter=hardware',
+    system: null,
+    about: null,
+}
 
 const vueApp = createApp({
     data() {
@@ -15,7 +27,11 @@ const vueApp = createApp({
             parametersHelpTexts: [],
             isPostingForm: false,
             showPostSucceeded: false,
-            filter: '',
+
+            // Tab routing
+            tab: 'home',
+            loadedQuery: null,
+            version: '',
 
             // Reboot notification
             showRebootBanner: false,
@@ -34,25 +50,61 @@ const vueApp = createApp({
     },
 
     mounted() {
-        // Get filter from URL parameter if available
-        const urlParams = new URLSearchParams(window.location.search);
-        let filter = urlParams.get('filter');
+        window.addEventListener('hashchange', () => this.selectTab(this.tabFromHash()));
+        this.selectTab(this.tabFromHash());
 
-        // If no filter specified and we're on index page, use empty filter to get all parameters
-        if (!filter && (window.location.pathname === '/' || window.location.pathname === '/index.html')) {
-            filter = '';
-        } else if (!filter) {
-            filter = this.filter; // use default
-        }
-
-        this.filter = filter;
-
-        // Fetch parameters with the determined filter
-        this.fetchParameters(this.filter);
+        const fallback = document.getElementById('fallback-warning');
+        if (fallback) fallback.style.display = 'none';
     },
 
     methods: {
-        async fetchParameters(filter = '') {
+        tabFromHash() {
+            const tab = window.location.hash.replace(/^#\/?/, '');
+            return tab in tabQueries ? tab : 'home';
+        },
+
+        selectTab(tab) {
+            this.tab = tab;
+
+            // Only refetch when the query actually differs, so switching back and
+            // forth between System and About costs nothing.
+            const query = tabQueries[tab];
+
+            if (query !== null && query !== this.loadedQuery) {
+                this.loadedQuery = query;
+                this.fetchParameters(query);
+            }
+
+            if (tab === 'about' && !this.version) {
+                this.fetchVersion();
+            }
+
+            // On a narrow screen the navbar is collapsed and stays open over the tab
+            // that was just picked. Closing it from here rather than with
+            // data-bs-toggle on the links: Bootstrap's collapse delegation calls
+            // preventDefault() on <a> elements, which would swallow the hash change.
+            const navbar = document.getElementById('navbarToggleExternalContent');
+
+            if (navbar) {
+                Collapse.getOrCreateInstance(navbar, { toggle: false }).hide();
+            }
+
+            // uPlot has to measure the chart containers, so wait until v-show has made
+            // them visible.
+            if (tab === 'home') {
+                this.$nextTick(initCharts);
+            }
+        },
+
+        async fetchVersion() {
+            try {
+                this.version = (await (await fetch('/version')).text()).trim();
+            } catch (err) {
+                this.version = 'unknown';
+            }
+        },
+
+        async fetchParameters(query = '') {
             this.parameters = [];
             this.originalValues = {}; // Reset original values
             let offset = 0;
@@ -63,8 +115,8 @@ const vueApp = createApp({
                 // Build URL with dynamic filter, offset, and limit
                 let url = `/parameters?offset=${offset}&limit=${limit}`;
 
-                if (filter) {
-                    url += `&filter=${encodeURIComponent(filter)}`;
+                if (query) {
+                    url += '&' + query;
                 }
 
                 try {
@@ -163,7 +215,7 @@ const vueApp = createApp({
                 })
                 .then(data => {
                     // Parameters saved successfully - now re-fetch to get updated show conditions
-                    this.fetchParameters(this.filter);
+                    this.fetchParameters(this.loadedQuery);
 
                     // Show reboot banner only if reboot-required params actually changed
                     if (rebootParamsChanged.length > 0) {
@@ -586,9 +638,8 @@ const numberInput = {
 
 vueApp.component(numberInput.name, numberInput);
 
-window.vueApp = vueApp
-window.dispatchEvent(appCreatedEvent)
-window.appCreated = true
+// The bundle is deferred, so the document is parsed by the time this runs.
+vueApp.mount('#app')
 
 /**
  * Takes an array of objects and returns an object of arrays where the value of key is the same

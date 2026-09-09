@@ -241,6 +241,14 @@ inline void serverSetup() {
                 filterType = request->getParam("filter")->value();
             }
 
+            // A view can name the parameters it shows instead of asking for a whole
+            // section range and picking from the result. Wrapped in commas so a plain
+            // indexOf matches whole names only.
+            String names = "";
+            if (request->hasParam("names")) {
+                names = "," + request->getParam("names")->value() + ",";
+            }
+
             // Defaults
             int offset = 0;
             int limit = 5;
@@ -282,7 +290,10 @@ inline void serverSetup() {
 
                 bool includeParam = false;
 
-                if (filterType == "hardware") {
+                if (names.length() > 0) {
+                    includeParam = names.indexOf("," + String(param->getId()) + ",") >= 0;
+                }
+                else if (filterType == "hardware") {
                     includeParam = param->getSection() >= 11 && param->getSection() <= 15;
                 }
                 else if (filterType == "behavior") {
@@ -724,12 +735,21 @@ inline void serverSetup() {
 
     server.addHandler(&events);
 
+    // The four pages became tabs of one page, addressed by hash. Redirect the old URLs
+    // so existing bookmarks still land on the right tab.
+    server.on("/parameters.html", HTTP_GET, [](AsyncWebServerRequest* request) {
+        const AsyncWebParameter* filter = request->getParam("filter");
+        request->redirect(filter && filter->value() == "hardware" ? "/#hardware" : "/#settings");
+    });
+
+    server.on("/system.html", HTTP_GET, [](AsyncWebServerRequest* request) { request->redirect("/#system"); });
+    server.on("/about.html", HTTP_GET, [](AsyncWebServerRequest* request) { request->redirect("/#about"); });
+
     // serve static files
     LittleFS.begin();
     server.serveStatic("/css", LittleFS, "/css/", "max-age=604800"); // cache for one week
     server.serveStatic("/js", LittleFS, "/js/", "max-age=604800");
     server.serveStatic("/img", LittleFS, "/img/", "max-age=604800"); // cache for one week
-    server.serveStatic("/webfonts", LittleFS, "/webfonts/", "max-age=604800");
     server.serveStatic("/manifest.json", LittleFS, "/manifest.json", "max-age=604800");
     server.serveStatic("/", LittleFS, "/html/", "max-age=604800").setDefaultFile("index.html");
 

@@ -30,7 +30,7 @@ already went wrong with the HTML.
 """
 
 BUNDLES = [
-    ("frontend/js/bundle.entry.js", "data/js/bundle.js"),
+    ("frontend/js/app.js", "data/js/bundle.js"),
     ("frontend/css/bundle.entry.css", "data/css/bundle.css"),
 ]
 
