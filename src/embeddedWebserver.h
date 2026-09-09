@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <memory>
 #include <Arduino.h>
 
 #include "FS.h"
@@ -437,44 +438,102 @@ inline void serverSetup() {
     });
 
     server.on("/timeseries", HTTP_GET, [](AsyncWebServerRequest* request) {
-        AsyncResponseStream* response = request->beginResponseStream("application/json");
-        response->addHeader("Connection", "close"); // Force connection close
+        // Chunked rather than buffered. Pre-sizing the buffer avoids the realloc storm
+        // but asks for 3 * HISTORY_LENGTH * 8 + 64 = 14464 contiguous bytes per request,
+        // whatever the history holds. With a few concurrent clients that allocation
+        // fails; a chunked response never needs more than the server's own buffer.
+        struct TsState {
+            int phase = 0;   // even: the literals, odd: the three arrays, 7: done
+            int emitted = 0; // values written in the current array
+            int start = 0;
+            int count = 0;
+        };
 
-        response->print('{');
+        // Read count before index: sendTempEvent() bumps the index first and the count
+        // second, so the other order can yield a window covering a slot never written.
+        const int cnt = historyValueCount;
+        const int cur = historyCurrentIndex;
 
-        response->print("\"currentTemps\":[");
-        bool first = true;
+        // Released with the response, including on an early client disconnect.
+        auto st = std::make_shared<TsState>();
+        st->count = cnt;
+        st->start = mod(cur - cnt, HISTORY_LENGTH);
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[0][i] * 0.01f, 2);
-        }
+        // Longest token is the 18-byte heaterPowers header; a value stays under it
+        // because tempHistory is int16_t, so ",-327.68" at most. The assert turns a
+        // renamed key into a build error instead of truncated JSON on the device.
+        static constexpr size_t tokenCap = 24;
+        static_assert(sizeof("],\"heaterPowers\":[") <= tokenCap, "token buffer too small");
 
-        response->print("],");
+        AsyncWebServerResponse* response = request->beginChunkedResponse(
+            "application/json", [st](uint8_t* buffer, size_t maxLen, size_t) -> size_t {
+                size_t written = 0;
 
-        response->print("\"targetTemps\":[");
-        first = true;
+                // One whole JSON token per step, never half of one. maxLen is at least
+                // CONFIG_LWIP_TCP_MSS / 2 - 8 = 710 bytes, because the server skips the
+                // filler while less window is free, and the longest token is 18. A short
+                // chunk is allowed; only a 0 ends the response.
+                while (st->phase < 7) {
+                    char tok[tokenCap];
+                    size_t n = 0;
+                    int phase = st->phase;
+                    int emitted = st->emitted;
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[1][i] * 0.01f, 2);
-        }
+                    switch (phase) {
+                        case 0:
+                            n = snprintf(tok, sizeof(tok), "{\"currentTemps\":[");
+                            phase = 1;
+                            emitted = 0;
+                            break;
 
-        response->print("],");
+                        case 2:
+                            n = snprintf(tok, sizeof(tok), "],\"targetTemps\":[");
+                            phase = 3;
+                            emitted = 0;
+                            break;
 
-        response->print("\"heaterPowers\":[");
-        first = true;
+                        case 4:
+                            n = snprintf(tok, sizeof(tok), "],\"heaterPowers\":[");
+                            phase = 5;
+                            emitted = 0;
+                            break;
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[2][i] * 0.01f, 2);
-        }
+                        case 6:
+                            n = snprintf(tok, sizeof(tok), "]}");
+                            phase = 7;
+                            break;
 
-        response->print("]}");
+                        default: { // 1, 3, 5: the value arrays
+                            if (emitted >= st->count) {
+                                phase++; // array done, no output, n stays 0
+                                break;
+                            }
 
+                            const int arr = (phase - 1) / 2;
+                            const int idx = mod(st->start + emitted, HISTORY_LENGTH);
+                            n = snprintf(tok, sizeof(tok), "%s%.2f", emitted ? "," : "", tempHistory[arr][idx] * 0.01f);
+                            emitted++;
+                            break;
+                        }
+                    }
+
+                    if (written + n > maxLen) {
+                        // End the chunk here and leave the state untouched. On an empty
+                        // buffer a 0 would end the response and truncate the JSON
+                        // silently, so ask the server to come back instead.
+                        return written ? written : RESPONSE_TRY_AGAIN;
+                    }
+
+                    memcpy(buffer + written, tok, n);
+                    written += n;
+                    st->phase = phase;
+                    st->emitted = emitted;
+                }
+
+                return written; // 0 ends the response
+            });
+
+        response->addHeader("Connection", "close");
         request->send(response);
     });
 
