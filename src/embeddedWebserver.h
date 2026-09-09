@@ -590,12 +590,21 @@ inline void serverSetup() {
 
     server.addHandler(&events);
 
+    // The four pages became tabs of one page, addressed by hash. Redirect the old URLs
+    // so existing bookmarks still land on the right tab.
+    server.on("/parameters.html", HTTP_GET, [](AsyncWebServerRequest* request) {
+        const AsyncWebParameter* filter = request->getParam("filter");
+        request->redirect(filter && filter->value() == "hardware" ? "/#hardware" : "/#settings");
+    });
+
+    server.on("/system.html", HTTP_GET, [](AsyncWebServerRequest* request) { request->redirect("/#system"); });
+    server.on("/about.html", HTTP_GET, [](AsyncWebServerRequest* request) { request->redirect("/#about"); });
+
     // serve static files
     LittleFS.begin();
     server.serveStatic("/css", LittleFS, "/css/", "max-age=604800"); // cache for one week
     server.serveStatic("/js", LittleFS, "/js/", "max-age=604800");
     server.serveStatic("/img", LittleFS, "/img/", "max-age=604800"); // cache for one week
-    server.serveStatic("/webfonts", LittleFS, "/webfonts/", "max-age=604800");
     server.serveStatic("/manifest.json", LittleFS, "/manifest.json", "max-age=604800");
     server.serveStatic("/", LittleFS, "/html/", "max-age=604800").setDefaultFile("index.html");
 

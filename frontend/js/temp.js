@@ -1,10 +1,8 @@
 import uPlot from '../vendor/uPlot.esm.js'
 
-// No side effects at module level: this file is part of the shared bundle, and only
-// the page that has the chart divs may start it. index.html calls initCharts().
-// Previously a top-level getTimeseries() would have fetched /timeseries on every page
-// load -- the endpoint that used to crash the firmware -- and then failed on the
-// pages without #chart-temperature.
+// No side effects at module level: app.js calls initCharts() when the Home tab becomes
+// visible. A top-level getTimeseries() would fetch on every load -- the endpoint that
+// used to crash the firmware -- even for someone who only opens Settings.
 
 const maxValues = 600          // max number of data points to keep in memory
 const updateInterval = 1000    // expected ms between updates (from event source with new values)
@@ -331,14 +329,22 @@ function getSize(selector) {
     }
 }
 
+function applySize() {
+    if (uplotTemp !== null) {
+        uplotTemp.setSize(getSize(chartDiv));
+    }
+    if (uplotHeater !== null) {
+        uplotHeater.setSize(getSize(heaterDiv));
+    }
+}
+
 // resize plots when window is resized
 function registerResizeHandler() {
     window.addEventListener("resize", e => {
-        if (uplotTemp !== null) {
-            uplotTemp.setSize(getSize(chartDiv));
-        }
-        if (uplotHeater !== null) {
-            uplotHeater.setSize(getSize(heaterDiv));
+        // Another tab may be showing, and then the chart divs are display:none and
+        // measure 0 wide -- resizing to that would collapse the plots.
+        if (document.getElementById(chartDiv).offsetWidth) {
+            applySize();
         }
     });
 }
@@ -403,13 +409,21 @@ function subscribeToEvents() {
 }
 }
 
-// Entry point for the chart page. Guarded on the divs so a stray call elsewhere is a
-// no-op rather than an exception from uPlot on a null element.
-window.initCharts = function initCharts() {
+let started = false
+
+// Entry point for the Home tab, called every time it becomes visible: uPlot measures
+// its container, which only has a width while the tab is shown.
+export function initCharts() {
     if (!document.getElementById(chartDiv) || !document.getElementById(heaterDiv)) {
         return
     }
 
+    if (started) {
+        applySize()   // the window may have been resized while the tab was hidden
+        return
+    }
+
+    started = true
     registerResizeHandler()
     subscribeToEvents()
     getTimeseries()

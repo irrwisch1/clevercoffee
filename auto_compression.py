@@ -18,17 +18,11 @@ TODO: Handle the files which are templated.
 FILES_TO_COMPRESS = []
 
 FILES_TO_SKIP = [
-    # The pages and their fragments are produced by precompile_html.py, which
-    # compresses them itself.
-    "html/about.html",
+    # The page is produced by precompile_html.py, which compresses it itself.
     "html/index.html",
-    "html/parameters.html",
-    "html/system.html",
-    "html_fragments/header.html",
     # Bundle sources, not shipped individually.
     "js/app.js",
     "js/temp.js",
-    "js/bundle.entry.js",
     "css/bundle.entry.css",
     "css/icons.css",
     # Library manifest and refresh helper, both build-host only.

@@ -1,195 +1,544 @@
-%HEADER%
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Clever Coffee PID</title>
+    <link rel="icon" href="data:image/svg+xml,%%3Csvg%%20xmlns='http://www.w3.org/2000/svg'%%20viewBox='0%%200%%2016%%2016'%%3E%%3Ctext%%20x='0'%%20y='14'%%3E☕%%3C/text%%3E%%3C/svg%%3E" type="image/svg+xml" />
+    <link rel="manifest" href="manifest.json" />
 
-    <script type="module">
-        (window.appCreated ? Promise.resolve() : new Promise(resolve => window.addEventListener('appCreated', resolve)))
-            .then(() => vueApp.mount('#content'));
-    </script>
+    <link rel="stylesheet" href="/css/bundle.css" />
+    <script src="/js/bundle.js" defer></script>
 
     <style>
-        /* Custom CSS for larger form switches */
-        .form-switch-lg .form-check-input {
-            width: 3rem;
-            height: 1.5rem;
-        }
-        .form-switch-lg .form-check-input:focus {
-            border-color: rgba(13, 110, 253, 0.25);
-            outline: 0;
-            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
-        }
+            /* Custom CSS for larger form switches */
+            .form-switch-lg .form-check-input {
+                width: 3rem;
+                height: 1.5rem;
+            }
+            .form-switch-lg .form-check-input:focus {
+                border-color: rgba(13, 110, 253, 0.25);
+                outline: 0;
+                box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+            }
 
-        /* Green color for checked switches */
-        .form-switch-lg .form-check-input:checked {
-            background-color: #198754;
-            border-color: #198754;
-        }
-        .form-switch-lg .form-check-input:checked:focus {
-            border-color: rgba(25, 135, 84, 0.25);
-            box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
-        }
-    </style>
+            /* Green color for checked switches */
+            .form-switch-lg .form-check-input:checked {
+                background-color: #198754;
+                border-color: #198754;
+            }
+            .form-switch-lg .form-check-input:checked:focus {
+                border-color: rgba(25, 135, 84, 0.25);
+                box-shadow: 0 0 0 0.25rem rgba(25, 135, 84, 0.25);
+            }
+        </style>
+</head>
 
-    <div class="content-wrapper">
-        <div id="content" class="container my-5">
-            <div class="card card-accent-dark mb-5 pb-0 shadow-sm rounded">
-                <div class="card-body bg-light pb-1 rounded">
-                    <h5 class="card-title">
-                        Status
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form @submit.prevent="postParameters">
-                        <div class="row row-cols-1 row-cols-md-3">
-                            <div class="col-md-5 mb-4">
-                                <label class="form-label me-1 col-form-label">Current Temperature</label><br/>
-                                <b><span id="varTEMP"></span> °C</b>
-                            </div>
+<body>
+<noscript>
+    <div style="padding:1em; background:#6c757d; color:#ffffff; font-weight:bold;">
+        JavaScript is disabled -- please enable it to use this interface.
+    </div>
+</noscript>
 
-                            <template v-for="param in parameters">
-                                <template v-if="param.name == 'brew.setpoint'">
-                                    <div class="col-md-4">
-                                        <label class="form-label me-1 col-form-label" :for="'var'+param.name">{{param.displayName}}</label>
-                                        <template v-if="param.hasHelpText">
-                                            <a href="#" role="button" @mouseover="fetchHelpText(param.name)" data-bs-toggle="popover" data-bs-html="true" :data-bs-original-title="parametersHelpTexts[param.name]">
-                                                <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
-                                            </a>
-                                        </template>
-                                        <vue-number-input :step="0.1" :id="'var'+param.name" :name="'var'+param.name" v-model="param.value" :min="0" :max="150" style="min-width: 150px; max-width: 200px;   touch-action: manipulation;" center controls></vue-number-input>
-                                    </div>
-                                </template>
-                            </template>
-                            <div class="col-md-3 pt-5 pe-5 clearfix">
-                                <button type="submit" class="btn btn-primary float-end" :disabled="isPostingForm">
-                                    <svg v-show="showPostSucceeded" class="icon me-1" aria-hidden="true"><use href="#i-check"/></svg>
-                                    <span v-show="isPostingForm" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
-                                    Save
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+<!-- Hidden by app.js once the app has mounted, so it stays up if the bundle never
+     arrived. -->
+<div id="fallback-warning" style="padding:1em; background:#6c757d; color:#ffffff; font-weight:bold;">
+    If you are seeing plain text or an unstyled page, the resources may not have loaded.<br>
+    Please try refreshing the page. If that doesn't help, reboot the device.
+</div>
+
+<!-- Icon sprite, inlined into every page by precompile_html.py. The paths are
+     FontAwesome 6.2.1 Free (CC BY 4.0); the webfont it used to need was two extra
+     requests and ~176 kB, which the ESP32 webserver regularly failed to deliver. -->
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none" aria-hidden="true">
+    <symbol id="i-check" viewBox="0 0 512 512"><path d="M470.6 105.4c12.5 12.5 12.5 32.8 0 45.3l-256 256c-12.5 12.5-32.8 12.5-45.3 0l-128-128c-12.5-12.5-12.5-32.8 0-45.3s32.8-12.5 45.3 0L192 338.7 425.4 105.4c12.5-12.5 32.8-12.5 45.3 0z"/></symbol>
+    <symbol id="i-circle-info" viewBox="0 0 512 512"><path d="M256 512c141.4 0 256-114.6 256-256S397.4 0 256 0S0 114.6 0 256S114.6 512 256 512zM216 336h24V272H216c-13.3 0-24-10.7-24-24s10.7-24 24-24h48c13.3 0 24 10.7 24 24v88h8c13.3 0 24 10.7 24 24s-10.7 24-24 24H216c-13.3 0-24-10.7-24-24s10.7-24 24-24zm40-144c-17.7 0-32-14.3-32-32s14.3-32 32-32s32 14.3 32 32s-14.3 32-32 32z"/></symbol>
+    <symbol id="i-circle-question" viewBox="0 0 512 512"><path d="M256 512c141.4 0 256-114.6 256-256S397.4 0 256 0S0 114.6 0 256S114.6 512 256 512zM169.8 165.3c7.9-22.3 29.1-37.3 52.8-37.3h58.3c34.9 0 63.1 28.3 63.1 63.1c0 22.6-12.1 43.5-31.7 54.8L280 264.4c-.2 13-10.9 23.6-24 23.6c-13.3 0-24-10.7-24-24V250.5c0-8.6 4.6-16.5 12.1-20.8l44.3-25.4c4.7-2.7 7.6-7.7 7.6-13.1c0-8.4-6.8-15.1-15.1-15.1H222.6c-3.4 0-6.4 2.1-7.5 5.3l-.4 1.2c-4.4 12.5-18.2 19-30.6 14.6s-19-18.2-14.6-30.6l.4-1.2zM288 352c0 17.7-14.3 32-32 32s-32-14.3-32-32s14.3-32 32-32s32 14.3 32 32z"/></symbol>
+    <symbol id="i-download" viewBox="0 0 512 512"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V274.7l-73.4-73.4c-12.5-12.5-32.8-12.5-45.3 0s-12.5 32.8 0 45.3l128 128c12.5 12.5 32.8 12.5 45.3 0l128-128c12.5-12.5 12.5-32.8 0-45.3s-32.8-12.5-45.3 0L288 274.7V32zM64 352c-35.3 0-64 28.7-64 64v32c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V416c0-35.3-28.7-64-64-64H346.5l-45.3 45.3c-25 25-65.5 25-90.5 0L165.5 352H64zM432 456c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24z"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 512 512"><path d="M352 256c0 22.2-1.2 43.6-3.3 64H163.3c-2.2-20.4-3.3-41.8-3.3-64s1.2-43.6 3.3-64H348.7c2.2 20.4 3.3 41.8 3.3 64zm28.8-64H503.9c5.3 20.5 8.1 41.9 8.1 64s-2.8 43.5-8.1 64H380.8c2.1-20.6 3.2-42 3.2-64s-1.1-43.4-3.2-64zm112.6-32H376.7c-10-63.9-29.8-117.4-55.3-151.6c78.3 20.7 142 77.5 171.9 151.6zm-149.1 0H167.7c6.1-36.4 15.5-68.6 27-94.7c10.5-23.6 22.2-40.7 33.5-51.5C239.4 3.2 248.7 0 256 0s16.6 3.2 27.8 13.8c11.3 10.8 23 27.9 33.5 51.5c11.6 26 21 58.2 27 94.7zm-209 0H18.6C48.6 85.9 112.2 29.1 190.6 8.4C165.1 42.6 145.3 96.1 135.3 160zM8.1 192H131.2c-2.1 20.6-3.2 42-3.2 64s1.1 43.4 3.2 64H8.1C2.8 299.5 0 278.1 0 256s2.8-43.5 8.1-64zM194.7 446.6c-11.6-26-20.9-58.2-27-94.6H344.3c-6.1 36.4-15.5 68.6-27 94.6c-10.5 23.6-22.2 40.7-33.5 51.5C272.6 508.8 263.3 512 256 512s-16.6-3.2-27.8-13.8c-11.3-10.8-23-27.9-33.5-51.5zM135.3 352c10 63.9 29.8 117.4 55.3 151.6C112.2 482.9 48.6 426.1 18.6 352H135.3zm358.1 0c-30 74.1-93.6 130.9-171.9 151.6c25.5-34.2 45.2-87.7 55.3-151.6H493.4z"/></symbol>
+    <symbol id="i-house" viewBox="0 0 576 512"><path d="M575.8 255.5c0 18-15 32.1-32 32.1h-32l.7 160.2c0 2.7-.2 5.4-.5 8.1V472c0 22.1-17.9 40-40 40H456c-1.1 0-2.2 0-3.3-.1c-1.4 .1-2.8 .1-4.2 .1H416 392c-22.1 0-40-17.9-40-40V448 384c0-17.7-14.3-32-32-32H256c-17.7 0-32 14.3-32 32v64 24c0 22.1-17.9 40-40 40H160 128.1c-1.5 0-3-.1-4.5-.2c-1.2 .1-2.4 .2-3.6 .2H104c-22.1 0-40-17.9-40-40V360c0-.9 0-1.9 .1-2.8V287.6H32c-18 0-32-14-32-32.1c0-9 3-17 10-24L266.4 8c7-7 15-8 22-8s15 2 21 7L564.8 231.5c8 7 12 15 11 24z"/></symbol>
+    <symbol id="i-microchip" viewBox="0 0 512 512"><path d="M176 24c0-13.3-10.7-24-24-24s-24 10.7-24 24V64c-35.3 0-64 28.7-64 64H24c-13.3 0-24 10.7-24 24s10.7 24 24 24H64v56H24c-13.3 0-24 10.7-24 24s10.7 24 24 24H64v56H24c-13.3 0-24 10.7-24 24s10.7 24 24 24H64c0 35.3 28.7 64 64 64v40c0 13.3 10.7 24 24 24s24-10.7 24-24V448h56v40c0 13.3 10.7 24 24 24s24-10.7 24-24V448h56v40c0 13.3 10.7 24 24 24s24-10.7 24-24V448c35.3 0 64-28.7 64-64h40c13.3 0 24-10.7 24-24s-10.7-24-24-24H448V280h40c13.3 0 24-10.7 24-24s-10.7-24-24-24H448V176h40c13.3 0 24-10.7 24-24s-10.7-24-24-24H448c0-35.3-28.7-64-64-64V24c0-13.3-10.7-24-24-24s-24 10.7-24 24V64H280V24c0-13.3-10.7-24-24-24s-24 10.7-24 24V64H176V24zM160 128H352c17.7 0 32 14.3 32 32V352c0 17.7-14.3 32-32 32H160c-17.7 0-32-14.3-32-32V160c0-17.7 14.3-32 32-32zm192 32H160V352H352V160z"/></symbol>
+    <symbol id="i-power-off" viewBox="0 0 512 512"><path d="M288 32c0-17.7-14.3-32-32-32s-32 14.3-32 32V256c0 17.7 14.3 32 32 32s32-14.3 32-32V32zM143.5 120.6c13.6-11.3 15.4-31.5 4.1-45.1s-31.5-15.4-45.1-4.1C49.7 115.4 16 181.8 16 256c0 132.5 107.5 240 240 240s240-107.5 240-240c0-74.2-33.8-140.6-86.6-184.6c-13.6-11.3-33.8-9.4-45.1 4.1s-9.4 33.8 4.1 45.1c38.9 32.3 63.5 81 63.5 135.4c0 97.2-78.8 176-176 176s-176-78.8-176-176c0-54.4 24.7-103.1 63.5-135.4z"/></symbol>
+    <symbol id="i-rotate" viewBox="0 0 512 512"><path d="M142.9 142.9c62.2-62.2 162.7-62.5 225.3-1L327 183c-6.9 6.9-8.9 17.2-5.2 26.2s12.5 14.8 22.2 14.8H463.5c0 0 0 0 0 0H472c13.3 0 24-10.7 24-24V72c0-9.7-5.8-18.5-14.8-22.2s-19.3-1.7-26.2 5.2L413.4 96.6c-87.6-86.5-228.7-86.2-315.8 1C73.2 122 55.6 150.7 44.8 181.4c-5.9 16.7 2.9 34.9 19.5 40.8s34.9-2.9 40.8-19.5c7.7-21.8 20.2-42.3 37.8-59.8zM16 312v7.6 .7V440c0 9.7 5.8 18.5 14.8 22.2s19.3 1.7 26.2-5.2l41.6-41.6c87.6 86.5 228.7 86.2 315.8-1c24.4-24.4 42.1-53.1 52.9-83.7c5.9-16.7-2.9-34.9-19.5-40.8s-34.9 2.9-40.8 19.5c-7.7 21.8-20.2 42.3-37.8 59.8c-62.2 62.2-162.7 62.5-225.3 1L185 329c6.9-6.9 8.9-17.2 5.2-26.2s-12.5-14.8-22.2-14.8H48.4h-.7H40c-13.3 0-24 10.7-24 24z"/></symbol>
+    <symbol id="i-server" viewBox="0 0 512 512"><path d="M64 32C28.7 32 0 60.7 0 96v64c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V96c0-35.3-28.7-64-64-64H64zM344 152c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24zm96-24c0 13.3-10.7 24-24 24s-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24zM64 288c-35.3 0-64 28.7-64 64v64c0 35.3 28.7 64 64 64H448c35.3 0 64-28.7 64-64V352c0-35.3-28.7-64-64-64H64zM344 408c-13.3 0-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24s-10.7 24-24 24zm104-24c0 13.3-10.7 24-24 24s-24-10.7-24-24s10.7-24 24-24s24 10.7 24 24z"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 512 512"><path d="M0 416c0-17.7 14.3-32 32-32l54.7 0c12.3-28.3 40.5-48 73.3-48s61 19.7 73.3 48L480 384c17.7 0 32 14.3 32 32s-14.3 32-32 32l-246.7 0c-12.3 28.3-40.5 48-73.3 48s-61-19.7-73.3-48L32 448c-17.7 0-32-14.3-32-32zm192 0c0-17.7-14.3-32-32-32s-32 14.3-32 32s14.3 32 32 32s32-14.3 32-32zM384 256c0-17.7-14.3-32-32-32s-32 14.3-32 32s14.3 32 32 32s32-14.3 32-32zm-32-80c32.8 0 61 19.7 73.3 48l54.7 0c17.7 0 32 14.3 32 32s-14.3 32-32 32l-54.7 0c-12.3 28.3-40.5 48-73.3 48s-61-19.7-73.3-48L32 288c-17.7 0-32-14.3-32-32s14.3-32 32-32l246.7 0c12.3-28.3 40.5-48 73.3-48zM192 64c-17.7 0-32 14.3-32 32s14.3 32 32 32s32-14.3 32-32s-14.3-32-32-32zm73.3 0L480 64c17.7 0 32 14.3 32 32s-14.3 32-32 32l-214.7 0c-12.3 28.3-40.5 48-73.3 48s-61-19.7-73.3-48L32 128C14.3 128 0 113.7 0 96S14.3 64 32 64l86.7 0C131 35.7 159.2 16 192 16s61 19.7 73.3 48z"/></symbol>
+    <symbol id="i-triangle-exclamation" viewBox="0 0 512 512"><path d="M256 32c14.2 0 27.3 7.5 34.5 19.8l216 368c7.3 12.4 7.3 27.7 .2 40.1S486.3 480 472 480H40c-14.3 0-27.6-7.7-34.7-20.1s-7-27.8 .2-40.1l216-368C228.7 39.5 241.8 32 256 32zm0 128c-13.3 0-24 10.7-24 24V296c0 13.3 10.7 24 24 24s24-10.7 24-24V184c0-13.3-10.7-24-24-24zm32 224c0-17.7-14.3-32-32-32s-32 14.3-32 32s14.3 32 32 32s32-14.3 32-32z"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 512 512"><path d="M288 109.3V352c0 17.7-14.3 32-32 32s-32-14.3-32-32V109.3l-73.4 73.4c-12.5 12.5-32.8 12.5-45.3 0s-12.5-32.8 0-45.3l128-128c12.5-12.5 32.8-12.5 45.3 0l128 128c12.5 12.5 12.5 32.8 0 45.3s-32.8 12.5-45.3 0L288 109.3zM64 352H192c0 35.3 28.7 64 64 64s64-28.7 64-64H448c35.3 0 64 28.7 64 64v32c0 35.3-28.7 64-64 64H64c-35.3 0-64-28.7-64-64V416c0-35.3 28.7-64 64-64zM432 456c13.3 0 24-10.7 24-24s-10.7-24-24-24s-24 10.7-24 24s10.7 24 24 24z"/></symbol>
+    <symbol id="i-wifi" viewBox="0 0 640 512"><path d="M54.2 202.9C123.2 136.7 216.8 96 320 96s196.8 40.7 265.8 106.9c12.8 12.2 33 11.8 45.2-.9s11.8-33-.9-45.2C549.7 79.5 440.4 32 320 32S90.3 79.5 9.8 156.7C-2.9 169-3.3 189.2 8.9 202s32.5 13.2 45.2 .9zM320 256c56.8 0 108.6 21.1 148.2 56c13.3 11.7 33.5 10.4 45.2-2.8s10.4-33.5-2.8-45.2C459.8 219.2 393 192 320 192s-139.8 27.2-190.5 72c-13.3 11.7-14.5 31.9-2.8 45.2s31.9 14.5 45.2 2.8c39.5-34.9 91.3-56 148.2-56zm64 160c0-35.3-28.7-64-64-64s-64 28.7-64 64s28.7 64 64 64s64-28.7 64-64z"/></symbol>
+</svg>
+
+<!-- One page, five tabs. The hash is the route: app.js maps it to `tab` and, for the
+     tabs that show parameters, to the /parameters filter. -->
+<div id="app">
+    <nav class="navbar navbar-expand-xl navbar-dark bg-secondary">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#home">
+                <img alt="Clever Coffee" src="/img/logo.png" style="width:64px;">
+            </a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse"
+                data-bs-target="#navbarToggleExternalContent" aria-controls="navbarToggleExternalContent"
+                aria-expanded="false" aria-label="Toggle page navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarToggleExternalContent">
+                <div class="navbar-nav">
+                        <a class="nav-item nav-link" :class="{ active: tab === 'home' }" href="#home"
+                           data-bs-toggle="collapse" data-bs-target="#navbarToggleExternalContent">
+                            <svg class="icon" aria-hidden="true"><use href="#i-house"/></svg> Home
+                        </a>
+                        <a class="nav-item nav-link" :class="{ active: tab === 'settings' }" href="#settings"
+                           data-bs-toggle="collapse" data-bs-target="#navbarToggleExternalContent">
+                            <svg class="icon" aria-hidden="true"><use href="#i-sliders"/></svg> Settings
+                        </a>
+                        <a class="nav-item nav-link" :class="{ active: tab === 'hardware' }" href="#hardware"
+                           data-bs-toggle="collapse" data-bs-target="#navbarToggleExternalContent">
+                            <svg class="icon" aria-hidden="true"><use href="#i-microchip"/></svg> Hardware
+                        </a>
+                        <a class="nav-item nav-link" :class="{ active: tab === 'system' }" href="#system"
+                           data-bs-toggle="collapse" data-bs-target="#navbarToggleExternalContent">
+                            <svg class="icon" aria-hidden="true"><use href="#i-server"/></svg> System
+                        </a>
+                        <a class="nav-item nav-link" :class="{ active: tab === 'about' }" href="#about"
+                           data-bs-toggle="collapse" data-bs-target="#navbarToggleExternalContent">
+                            <svg class="icon" aria-hidden="true"><use href="#i-circle-info"/></svg> About
+                        </a>
                 </div>
             </div>
+        </div>
+    </nav>
 
-            <div class="card card-accent-dark mb-5 pb-0 shadow-sm rounded">
-                <div class="card-body bg-light pb-1 rounded">
-                    <h5 class="card-title">
-                        Functions
-                    </h5>
+    <section v-show="tab === 'home'" class="container my-5">
+        <div class="card card-accent-dark mb-5 pb-0 shadow-sm rounded">
+            <div class="card-body bg-light pb-1 rounded">
+                <h5 class="card-title">
+                    Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <form @submit.prevent="postParameters">
+                    <div class="row row-cols-1 row-cols-md-3">
+                        <div class="col-md-5 mb-4">
+                            <label class="form-label me-1 col-form-label">Current Temperature</label><br/>
+                            <b><span id="varTEMP"></span> °C</b>
+                        </div>
+
+                        <template v-for="param in parameters">
+                            <template v-if="param.name == 'brew.setpoint'">
+                                <div class="col-md-4">
+                                    <label class="form-label me-1 col-form-label" :for="'home'+param.name">{{param.displayName}}</label>
+                                    <template v-if="param.hasHelpText">
+                                        <a href="#" role="button" @mouseover="fetchHelpText(param.name)" data-bs-toggle="popover" data-bs-html="true" :data-bs-original-title="parametersHelpTexts[param.name]">
+                                            <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
+                                        </a>
+                                    </template>
+                                    <vue-number-input :step="0.1" :id="'home'+param.name" :name="'home'+param.name" v-model="param.value" :min="0" :max="150" style="min-width: 150px; max-width: 200px;   touch-action: manipulation;" center controls></vue-number-input>
+                                </div>
+                            </template>
+                        </template>
+                        <div class="col-md-3 pt-5 pe-5 clearfix">
+                            <button type="submit" class="btn btn-primary float-end" :disabled="isPostingForm">
+                                <svg v-show="showPostSucceeded" class="icon me-1" aria-hidden="true"><use href="#i-check"/></svg>
+                                <span v-show="isPostingForm" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                                Save
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card card-accent-dark mb-5 pb-0 shadow-sm rounded">
+            <div class="card-body bg-light pb-1 rounded">
+                <h5 class="card-title">
+                    Functions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive pb-0">
+                    <table class="table table-borderless pb-0 mb-0">
+                        <tbody>
+                            <template v-for="param in parameters">
+                                <tr>
+                                    <template v-if="param.name == 'pid.enabled'">
+                                        <td class="align-middle"><b>PID Controller</b></td>
+                                        <td class="align-middle text-center">
+                                            <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="pid_toggle"
+                                                       :checked="param.value == 1"
+                                                       @change="toggleFunction('/togglePid', 'pid.enabled', param)">
+                                                <label class="form-check-label" for="pid_toggle"></label>
+                                            </div>
+                                        </td>
+                                    </template>
+                                    <template v-if="param.name == 'STEAM_MODE'">
+                                        <td class="align-middle"><b>Steam Mode</b></td>
+                                        <td class="align-middle text-center">
+                                            <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="steam_toggle"
+                                                       :checked="param.value == 1"
+                                                       @change="toggleFunction('/toggleSteam', 'STEAM_MODE', param)">
+                                                <label class="form-check-label" for="steam_toggle"></label>
+                                            </div>
+                                        </td>
+                                    </template>
+                                    <template v-if="param.name == 'BACKFLUSH_ON'">
+                                        <td class="align-middle"><b>Backflush Mode</b></td>
+                                        <td class="align-middle text-center">
+                                            <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
+                                                <input class="form-check-input"
+                                                       type="checkbox"
+                                                       role="switch"
+                                                       id="backflush_toggle"
+                                                       :checked="param.value == 1"
+                                                       @change="toggleFunction('/toggleBackflush', 'BACKFLUSH_ON', param)">
+                                                <label class="form-check-label" for="backflush_toggle"></label>
+                                            </div>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                            <!-- Scale functions -->
+                            <template v-if="parameters.some(p => p.name === 'TARE_ON' || p.name === 'CALIBRATION_ON')">
+                                <tr><td colspan="2"><hr class="my-3"></td></tr>
+                            </template>
+                            <template v-for="param in parameters">
+                                <tr>
+                                    <template v-if="param.name == 'TARE_ON'">
+                                        <td class="align-middle"><b>Tare Scale</b></td>
+                                        <td class="align-middle text-center">
+                                            <button class="btn btn-outline-primary"
+                                                    @click="executeAction('/toggleTareScale', 'TARE_ON')">
+                                                Tare Scale
+                                            </button>
+                                        </td>
+                                    </template>
+                                    <template v-if="param.name == 'CALIBRATION_ON'">
+                                        <td class="align-middle"><b>Scale Calibration</b></td>
+                                        <td class="align-middle text-center">
+                                            <button class="btn btn-outline-primary"
+                                                    @click="confirmCalibration()">
+                                                Start Calibration
+                                            </button>
+                                        </td>
+                                    </template>
+                                </tr>
+                            </template>
+                        </tbody>
+                    </table>
                 </div>
-                <div class="card-body">
-                    <div class="table-responsive pb-0">
-                        <table class="table table-borderless pb-0 mb-0">
-                            <tbody>
-                                <template v-for="param in parameters">
-                                    <tr>
-                                        <template v-if="param.name == 'pid.enabled'">
-                                            <td class="align-middle"><b>PID Controller</b></td>
-                                            <td class="align-middle text-center">
-                                                <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
-                                                    <input class="form-check-input"
-                                                           type="checkbox"
-                                                           role="switch"
-                                                           id="pid_toggle"
-                                                           :checked="param.value == 1"
-                                                           @change="toggleFunction('/togglePid', 'pid.enabled', param)">
-                                                    <label class="form-check-label" for="pid_toggle"></label>
-                                                </div>
-                                            </td>
-                                        </template>
-                                        <template v-if="param.name == 'STEAM_MODE'">
-                                            <td class="align-middle"><b>Steam Mode</b></td>
-                                            <td class="align-middle text-center">
-                                                <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
-                                                    <input class="form-check-input"
-                                                           type="checkbox"
-                                                           role="switch"
-                                                           id="steam_toggle"
-                                                           :checked="param.value == 1"
-                                                           @change="toggleFunction('/toggleSteam', 'STEAM_MODE', param)">
-                                                    <label class="form-check-label" for="steam_toggle"></label>
-                                                </div>
-                                            </td>
-                                        </template>
-                                        <template v-if="param.name == 'BACKFLUSH_ON'">
-                                            <td class="align-middle"><b>Backflush Mode</b></td>
-                                            <td class="align-middle text-center">
-                                                <div class="form-check form-switch form-switch-lg d-flex justify-content-center">
-                                                    <input class="form-check-input"
-                                                           type="checkbox"
-                                                           role="switch"
-                                                           id="backflush_toggle"
-                                                           :checked="param.value == 1"
-                                                           @change="toggleFunction('/toggleBackflush', 'BACKFLUSH_ON', param)">
-                                                    <label class="form-check-label" for="backflush_toggle"></label>
-                                                </div>
-                                            </td>
-                                        </template>
-                                    </tr>
-                                </template>
-                                <!-- Scale functions -->
-                                <template v-if="parameters.some(p => p.name === 'TARE_ON' || p.name === 'CALIBRATION_ON')">
-                                    <tr><td colspan="2"><hr class="my-3"></td></tr>
-                                </template>
-                                <template v-for="param in parameters">
-                                    <tr>
-                                        <template v-if="param.name == 'TARE_ON'">
-                                            <td class="align-middle"><b>Tare Scale</b></td>
-                                            <td class="align-middle text-center">
-                                                <button class="btn btn-outline-primary"
-                                                        @click="executeAction('/toggleTareScale', 'TARE_ON')">
-                                                    Tare Scale
-                                                </button>
-                                            </td>
-                                        </template>
-                                        <template v-if="param.name == 'CALIBRATION_ON'">
-                                            <td class="align-middle"><b>Scale Calibration</b></td>
-                                            <td class="align-middle text-center">
-                                                <button class="btn btn-outline-primary"
-                                                        @click="confirmCalibration()">
-                                                    Start Calibration
-                                                </button>
-                                            </td>
-                                        </template>
-                                    </tr>
-                                </template>
-                            </tbody>
-                        </table>
+            </div>
+        </div>
+
+        <div class="card card-accent-dark mb-5 shadow-sm rounded">
+            <div class="card-body bg-light pb-1 rounded">
+                <h5 class="card-title">
+                    Temperature
+                    <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the boiler temperature. Drag to zoom, double-click to reset zoom again.">
+                        <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
+                    </a>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="chart-temperature"></div>
+            </div>
+        </div>
+        <div class="card card-accent-dark mb-5 shadow-sm rounded">
+            <div class="card-body bg-light pb-1 rounded">
+                <h5 class="card-title">
+                    Heater Output
+                    <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the controlled heater power. Drag to zoom, double-click to reset zoom again.">
+                        <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
+                    </a>
+                </h5>
+            </div>
+            <div class="card-body">
+                <div id="chart-heater"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Settings and Hardware are the same markup with a different filter; the warning
+         banner inside keys off it. -->
+    <section v-show="tab === 'settings' || tab === 'hardware'" class="container my-5">
+        <!-- Reboot Required Banner -->
+        <div v-if="showRebootBanner" class="alert alert-info alert-dismissible mb-4 shadow-sm" role="alert">
+            <div class="d-flex align-items-center">
+                <svg class="icon me-3 fs-4" aria-hidden="true"><use href="#i-rotate"/></svg>
+                <div class="flex-grow-1">
+                    <strong>Reboot required</strong>
+                    <p class="mb-2 small">
+                        The following settings require a reboot to take effect:
+                        <em>{{ changedRebootParams.join(', ') }}</em>
+                    </p>
+                    <button class="btn btn-primary btn-sm me-2" @click="confirmRestart">
+                        <svg class="icon me-1" aria-hidden="true"><use href="#i-power-off"/></svg>
+                        Reboot Now
+                    </button>
+                    <button class="btn btn-outline-secondary btn-sm" @click="dismissRebootBanner">
+                        Later
+                    </button>
+                </div>
+                <button type="button" class="btn-close" @click="dismissRebootBanner" aria-label="Close"></button>
+            </div>
+        </div>
+
+        <!-- Hardware Configuration Warning - Only shown when filter=hardware -->
+        <div v-if="filter === 'hardware'" class="alert alert-warning alert-dismissible mb-4 shadow-sm" role="alert">
+            <div class="d-flex align-items-center">
+                <svg class="icon me-2 fs-4" aria-hidden="true"><use href="#i-triangle-exclamation"/></svg>
+                <div class="flex-grow-1">
+                    <h5 class="alert-heading mb-2">
+                        <strong>Hardware Configuration Warning</strong>
+                    </h5>
+                    <div>
+                        <p class="mb-2">
+                            <strong>Incorrect hardware settings can cause dangerous behavior!</strong>
+                        </p>
+                        <div id="hardwareWarningDetails">
+                            <div class="small">
+                                <ul class="mb-2">
+                                    <li><strong>Wrong relay or switch configurations</strong> could cause the pump, heater, or valve to activate unexpectedly</li>
+                                    <li><strong>Incorrect sensor configuration </strong>may prevent the machine from starting up normally</li>
+                                    <li>Using the <strong>wrong OLED type or i2c address</strong> may lead to graphics errors or the display not working at all</li>
+                                </ul>
+                                <p class="mb-2">
+                                    <strong>Before saving and restarting:</strong> Double-check all your settings, only enable features if you understand their
+                                    functionality and hardware-related prerequisites
+                                </p>
+                                <p class="mb-0">
+                                    <strong>When in doubt:</strong> Read or re-read the documentation or consult the community via our <a href="https://discord.gg/Kq5RFznuU4">Discord server</a>.
+                                </p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
-
-            <div class="card card-accent-dark mb-5 shadow-sm rounded">
-                <div class="card-body bg-light pb-1 rounded">
-                    <h5 class="card-title">
-                        Temperature
-                        <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the boiler temperature. Drag to zoom, double-click to reset zoom again.">
-                            <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
-                        </a>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="chart-temperature"></div>
-                </div>
-            </div>
-            <div class="card card-accent-dark mb-5 shadow-sm rounded">
-                <div class="card-body bg-light pb-1 rounded">
-                    <h5 class="card-title">
-                        Heater Output
-                        <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the controlled heater power. Drag to zoom, double-click to reset zoom again.">
-                            <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
-                        </a>
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <div id="chart-heater"></div>
-                </div>
-            </div>
-            <!-- Only this page has the chart divs, so only this page starts them.
-                 The load event fires after bundle.js (deferred) has executed, so
-                 initCharts and the Vue app both exist by then. -->
-            <script>window.addEventListener('load', () => window.initCharts())</script>
         </div>
-    </div>
 
+        <div class="card card-accent-dark mb-5 shadow-sm rounded">
+            <form @submit.prevent="postParameters">
+                <template v-for="(section, sectionKey) in parameterSectionsComputed">
+                    <div class="card-body bg-light pb-1 rounded">
+                        <h5 class="card-title"> {{ sectionName(sectionKey) }} </h5>
+                    </div>
+                    <div class="card-body">
+                        <template v-for="(group, groupKey) in section">
+                            <!-- Start a new row for each group -->
+                            <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 mb-3">
+                                <template v-for="param in group">
+                                    <template v-if="param.show">
+                                        <div class="col mb-3">
+                                            <label class="form-label me-1" :for="'var'+param.name">{{param.displayName}}</label>
+                                            <template v-if="param.hasHelpText || param.reboot">
+                                                <a href="#" role="button" @mouseover="fetchHelpText(param.name)" data-bs-toggle="popover" data-bs-html="true" :data-bs-original-title="parametersHelpTexts[param.name]">
+                                                    <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
+                                                </a>
+                                            </template>
+
+                                            <div v-if="isBoolean(param)">
+                                                <input type="checkbox"
+                                                       class="form-check-input form-control-lg"
+                                                       :id="'var'+param.name"
+                                                       :name="'var'+param.name"
+                                                       value="1"
+                                                       @change="param.value = 1-param.value"
+                                                       :checked="param.value != 0 ? 'checked' : null">
+                                            </div>
+
+                                            <div v-else-if="param.type === 5 && param.options">
+                                                <select class="form-select form-control-lg"
+                                                        :id="'var'+param.name"
+                                                        :name="'var'+param.name"
+                                                        v-model="param.value">
+                                                    <option v-for="option in param.options"
+                                                            :key="option.value"
+                                                            :value="option.value">
+                                                        {{ option.label }}
+                                                    </option>
+                                                </select>
+                                                <span v-if="param.value < param.min" class="text-danger small">Value is too small!</span>
+                                                <span v-if="param.value > param.max" class="text-danger small">Value is too large!</span>
+                                            </div>
+
+                                            <!-- String parameters -->
+                                            <div v-else-if="param.type === 4">
+                                                <input class="form-control form-control-lg"
+                                                       :type="param.name.toLowerCase().includes('password') ? 'password' : 'text'"
+                                                       :id="'var'+param.name"
+                                                       :name="'var'+param.name"
+                                                       v-model="param.value"
+                                                       :maxlength="param.max > 0 ? param.max : 64">
+                                                <span v-if="param.max > 0 && param.value && param.value.length > param.max" class="text-danger small">Value is too long!</span>
+                                            </div>
+
+                                            <!-- Numeric parameters (integer, uint8, double, float) -->
+                                            <div v-else>
+                                                <input class="form-control form-control-lg"
+                                                       :type="getInputType(param)"
+                                                       :step="getNumberStep(param)"
+                                                       :min="param.min"
+                                                       :max="param.max"
+                                                       :id="'var'+param.name"
+                                                       :name="'var'+param.name"
+                                                       v-model="param.value">
+                                                <span v-if="param.value < param.min" class="text-danger small">Value is too small!</span>
+                                                <span v-if="param.value > param.max" class="text-danger small">Value is too large!</span>
+                                            </div>
+                                        </div>
+                                    </template>
+                                </template>
+                            </div>
+                        </template>
+                    </div>
+                </template>
+
+                <div class="card-body clearfix">
+                    <div class="float-end me-2">
+                        <button type="submit" class="btn btn-primary" :disabled="isPostingForm">
+                            <svg v-show="showPostSucceeded" class="icon me-1" aria-hidden="true"><use href="#i-check"/></svg>
+                            <span v-show="isPostingForm" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            Save
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <section v-show="tab === 'system'" class="container my-4">
+                    <h3 class="mb-4">System</h3>
+
+        <!-- System Control Section -->
+        <div class="row mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning mb-3">Restart Machine</h5>
+                        <p class="card-text text-muted">Restart the machine to apply changes or resolve issues.</p>
+                        <button @click="confirmRestart" class="btn btn-warning btn-lg">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-power-off"/></svg>
+                            Restart
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-danger mb-3">Reset Options</h5>
+                        <p class="card-text text-muted">
+                            <strong>Warning:</strong> These actions cannot be undone.
+                        </p>
+                        <div class="d-grid gap-2 d-md-block">
+                            <button class="btn btn-danger btn-lg me-2" @click="confirmFactoryReset">
+                                <svg class="icon me-2" aria-hidden="true"><use href="#i-triangle-exclamation"/></svg>
+                                Factory Reset
+                            </button>
+                            <button class="btn btn-warning btn-lg" @click="confirmReset">
+                                <svg class="icon me-2" aria-hidden="true"><use href="#i-wifi"/></svg>
+                                Reset WiFi
+                            </button>
+                        </div>
+                        <div v-if="factoryResetMessage"
+                             class="mt-2 alert"
+                             :class="factoryResetSuccess ? 'alert-success' : 'alert-danger'">
+                            {{ factoryResetMessage }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Configuration Section -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-success mb-3">Configuration Backup</h5>
+                        <p class="card-text text-muted">Download your current configuration as a backup file.</p>
+                        <a href="/download/config" class="btn btn-success btn-lg" download="clevercoffee-config.json">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-download"/></svg>
+                            Download Config
+                        </a>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title text-warning mb-3">Configuration Upload</h5>
+                        <p class="card-text text-muted">Upload a previously downloaded configuration file to restore
+                            settings.</p>
+                        <div class="mb-3">
+                            <input type="file"
+                                   class="form-control"
+                                   id="configFileInput"
+                                   accept=".json"
+                                   @change="handleFileSelect">
+                        </div>
+                        <button @click="uploadConfig"
+                                class="btn btn-warning btn-lg"
+                                :disabled="!selectedFile || isUploading">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-upload"/></svg>
+                            <span v-if="isUploading">Uploading...</span>
+                            <span v-else>Upload Config</span>
+                        </button>
+                        <div v-if="uploadMessage"
+                             class="mt-2 alert"
+                             :class="uploadSuccess ? 'alert-success' : 'alert-danger'">
+                            {{ uploadMessage }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section v-show="tab === 'about'" class="container my-4">
+                    <h3 class="mb-4">About</h3>
+
+        <!-- Version Section -->
+        <div class="card mb-5">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Version</h5>
+                <p class="card-text text-muted">{{ version }}</p>
+            </div>
+        </div>
+
+        <!-- Links Section -->
+        <div class="card mb-5">
+            <div class="card-body">
+                <h5 class="card-title mb-3">Community & Resources</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-2">
+                        <a href="https://clevercoffee.de/" class="btn btn-outline-primary w-100" target="_blank">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-globe"/></svg>
+                            Project Website
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="https://github.com/rancilio-pid/clevercoffee" class="btn btn-outline-dark w-100" target="_blank">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-globe"/></svg>
+                            GitHub Repository
+                        </a>
+                    </div>
+                    <div class="col-md-4 mb-2">
+                        <a href="https://discord.gg/Kq5RFznuU4" class="btn btn-outline-info w-100" target="_blank">
+                            <svg class="icon me-2" aria-hidden="true"><use href="#i-globe"/></svg>
+                            Discord Community
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
 </div>
 
 </body>

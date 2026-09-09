@@ -3,9 +3,18 @@
 // navbar toggle depends on. Popover is constructed by hand further down.
 import { createApp } from '../vendor/vue.esm.js'
 import { Collapse, Popover } from '../vendor/bootstrap.esm.js'
+import { initCharts } from './temp.js'
 void Collapse // side-effect import; keep the binding
 
-const appCreatedEvent = new CustomEvent('appCreated')
+// The five tabs of the single page, and the /parameters filter each one needs.
+// null means the tab shows no parameters and needs no request.
+const tabFilters = {
+    home: '',
+    settings: 'behavior',
+    hardware: 'hardware',
+    system: null,
+    about: null,
+}
 
 const vueApp = createApp({
     data() {
@@ -16,6 +25,11 @@ const vueApp = createApp({
             isPostingForm: false,
             showPostSucceeded: false,
             filter: '',
+
+            // Tab routing
+            tab: 'home',
+            loadedFilter: null,
+            version: '',
 
             // Reboot notification
             showRebootBanner: false,
@@ -34,24 +48,52 @@ const vueApp = createApp({
     },
 
     mounted() {
-        // Get filter from URL parameter if available
-        const urlParams = new URLSearchParams(window.location.search);
-        let filter = urlParams.get('filter');
+        window.addEventListener('hashchange', () => this.selectTab(this.tabFromHash()));
+        this.selectTab(this.tabFromHash());
 
-        // If no filter specified and we're on index page, use empty filter to get all parameters
-        if (!filter && (window.location.pathname === '/' || window.location.pathname === '/index.html')) {
-            filter = '';
-        } else if (!filter) {
-            filter = this.filter; // use default
-        }
-
-        this.filter = filter;
-
-        // Fetch parameters with the determined filter
-        this.fetchParameters(this.filter);
+        const fallback = document.getElementById('fallback-warning');
+        if (fallback) fallback.style.display = 'none';
     },
 
     methods: {
+        tabFromHash() {
+            const tab = window.location.hash.replace(/^#\/?/, '');
+            return tab in tabFilters ? tab : 'home';
+        },
+
+        selectTab(tab) {
+            this.tab = tab;
+
+            // Home needs every parameter, Settings and Hardware a filtered subset. Only
+            // refetch when the filter actually differs, so switching back and forth
+            // between System and About costs nothing.
+            const filter = tabFilters[tab];
+
+            if (filter !== null && filter !== this.loadedFilter) {
+                this.loadedFilter = filter;
+                this.filter = filter;
+                this.fetchParameters(filter);
+            }
+
+            if (tab === 'about' && !this.version) {
+                this.fetchVersion();
+            }
+
+            // uPlot has to measure the chart containers, so wait until v-show has made
+            // them visible.
+            if (tab === 'home') {
+                this.$nextTick(initCharts);
+            }
+        },
+
+        async fetchVersion() {
+            try {
+                this.version = (await (await fetch('/version')).text()).trim();
+            } catch (err) {
+                this.version = 'unknown';
+            }
+        },
+
         async fetchParameters(filter = '') {
             this.parameters = [];
             this.originalValues = {}; // Reset original values
@@ -586,9 +628,8 @@ const numberInput = {
 
 vueApp.component(numberInput.name, numberInput);
 
-window.vueApp = vueApp
-window.dispatchEvent(appCreatedEvent)
-window.appCreated = true
+// The bundle is deferred, so the document is parsed by the time this runs.
+vueApp.mount('#app')
 
 /**
  * Takes an array of objects and returns an object of arrays where the value of key is the same
