@@ -3,6 +3,11 @@
     <script type="module">
         (window.appCreated ? Promise.resolve() : new Promise(resolve => window.addEventListener('appCreated', resolve)))
             .then(() => vueApp.mount('#content'));
+
+        fetch('/version')
+            .then(r => r.text())
+            .then(v => document.getElementById('version').textContent = v)
+            .catch(() => document.getElementById('version').textContent = 'unknown');
     </script>
 
     <div id="content">
@@ -14,7 +19,7 @@
             <div class="card mb-5">
                 <div class="card-body">
                     <h5 class="card-title mb-3">Version</h5>
-                    <p class="card-text text-muted">%VAR_SHOW_VERSION%</p>
+                    <p class="card-text text-muted" id="version"></p>
                 </div>
             </div>
 

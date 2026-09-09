@@ -28,6 +28,8 @@ FILES_TO_COMPRESS = [
 ]
 
 FILES_TO_SKIP = [
+    # The pages and their fragments are produced by precompile_html.py, which
+    # compresses them itself.
     "html/about.html",
     "html/index.html",
     "html/parameters.html",
