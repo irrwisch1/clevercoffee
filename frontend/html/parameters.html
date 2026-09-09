@@ -12,7 +12,7 @@
             <!-- Reboot Required Banner -->
             <div v-if="showRebootBanner" class="alert alert-info alert-dismissible mb-4 shadow-sm" role="alert">
                 <div class="d-flex align-items-center">
-                    <span class="fa-solid fa-rotate me-3 fs-4"></span>
+                    <svg class="icon me-3 fs-4" aria-hidden="true"><use href="#i-rotate"/></svg>
                     <div class="flex-grow-1">
                         <strong>Reboot required</strong>
                         <p class="mb-2 small">
@@ -20,7 +20,7 @@
                             <em>{{ changedRebootParams.join(', ') }}</em>
                         </p>
                         <button class="btn btn-primary btn-sm me-2" @click="confirmRestart">
-                            <span class="fa-solid fa-power-off me-1"></span>
+                            <svg class="icon me-1" aria-hidden="true"><use href="#i-power-off"/></svg>
                             Reboot Now
                         </button>
                         <button class="btn btn-outline-secondary btn-sm" @click="dismissRebootBanner">
@@ -34,7 +34,7 @@
             <!-- Hardware Configuration Warning - Only shown when filter=hardware -->
             <div v-if="filter === 'hardware'" class="alert alert-warning alert-dismissible mb-4 shadow-sm" role="alert">
                 <div class="d-flex align-items-center">
-                    <span class="fa-solid fa-triangle-exclamation me-2 fs-4"></span>
+                    <svg class="icon me-2 fs-4" aria-hidden="true"><use href="#i-triangle-exclamation"/></svg>
                     <div class="flex-grow-1">
                         <h5 class="alert-heading mb-2">
                             <strong>Hardware Configuration Warning</strong>
@@ -80,7 +80,7 @@
                                                 <label class="form-label me-1" :for="'var'+param.name">{{param.displayName}}</label>
                                                 <template v-if="param.hasHelpText || param.reboot">
                                                     <a href="#" role="button" @mouseover="fetchHelpText(param.name)" data-bs-toggle="popover" data-bs-html="true" :data-bs-original-title="parametersHelpTexts[param.name]">
-                                                        <span class="fa-solid fa-question-circle"></span>
+                                                        <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
                                                     </a>
                                                 </template>
 
@@ -145,7 +145,7 @@
                     <div class="card-body clearfix">
                         <div class="float-end me-2">
                             <button type="submit" class="btn btn-primary" :disabled="isPostingForm">
-                                <span v-show="showPostSucceeded" class="fa-solid fa-check me-1"></span>
+                                <svg v-show="showPostSucceeded" class="icon me-1" aria-hidden="true"><use href="#i-check"/></svg>
                                 <span v-show="isPostingForm" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                                 Save
                             </button>
@@ -156,29 +156,6 @@
         </div>
     </div>
 </div>
-
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const collapseElement = document.getElementById('hardwareWarningDetails');
-        if (collapseElement) {
-            collapseElement.addEventListener('show.bs.collapse', function () {
-                const button = document.querySelector('[data-bs-target="#hardwareWarningDetails"]');
-                if (button) {
-                    button.querySelector('.collapse-toggle-text').textContent = 'Hide Details';
-                    button.querySelector('.fa-chevron-down').classList.replace('fa-chevron-down', 'fa-chevron-up');
-                }
-            });
-
-            collapseElement.addEventListener('hide.bs.collapse', function () {
-                const button = document.querySelector('[data-bs-target="#hardwareWarningDetails"]');
-                if (button) {
-                    button.querySelector('.collapse-toggle-text').textContent = 'Show Details';
-                    button.querySelector('.fa-chevron-up').classList.replace('fa-chevron-up', 'fa-chevron-down');
-                }
-            });
-        }
-    });
-</script>
 
 </div>
 

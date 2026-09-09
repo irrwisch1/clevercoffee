@@ -5,7 +5,6 @@
   "dependencies": {
     "bootstrap": "5.2.3",
     "uplot": "1.6.28",
-    "vue": "3.2.47",
-    "@fortawesome/fontawesome-free": "6.2.1"
+    "vue": "3.2.47"
   }
 }

@@ -12,13 +12,10 @@ Other files will be copied as-is to the data directory.
 TODO: Handle the files which are templated.
 """
 
-# Only the fonts are left: bundle_frontend.py builds the JS and CSS and writes them
-# to data/ compressed itself. Keeping the same output in two places is the coupling
-# that already went wrong once with the HTML.
-FILES_TO_COMPRESS = [
-    "webfonts/fa-solid-900.woff2",
-    "webfonts/fa-regular-400.woff2",
-]
+# Empty on purpose: bundle_frontend.py builds the JS and CSS and writes them to data/
+# compressed itself, precompile_html.py does the same for the pages. Keeping the same
+# output in two places is the coupling that already went wrong once with the HTML.
+FILES_TO_COMPRESS = []
 
 FILES_TO_SKIP = [
     # The pages and their fragments are produced by precompile_html.py, which
@@ -33,6 +30,10 @@ FILES_TO_SKIP = [
     "js/temp.js",
     "js/bundle.entry.js",
     "css/bundle.entry.css",
+    "css/icons.css",
+    # Library manifest and refresh helper, both build-host only.
+    "package.json",
+    "update-libs.sh",
 ]
 
 FRONTEND_DIR = "frontend"
