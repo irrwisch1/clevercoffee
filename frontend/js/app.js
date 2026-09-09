@@ -1,6 +1,13 @@
+// Collapse is imported for its side effect, not for the name: importing the module is
+// what registers Bootstrap's click delegation for data-bs-toggle="collapse", which the
+// navbar toggle depends on. Popover is constructed by hand further down.
+import { createApp } from '../vendor/vue.esm.js'
+import { Collapse, Popover } from '../vendor/bootstrap.esm.js'
+void Collapse // side-effect import; keep the binding
+
 const appCreatedEvent = new CustomEvent('appCreated')
 
-const vueApp = Vue.createApp({
+const vueApp = createApp({
     data() {
         return {
             parameters: [],
@@ -523,10 +530,61 @@ const vueApp = Vue.createApp({
     }
 })
 
-// Register VueNumberInput component globally if it exists
-if (typeof VueNumberInput !== 'undefined') {
-    vueApp.component(VueNumberInput.name, VueNumberInput);
-}
+// Number input with +/- buttons.
+//
+// Replaces the vue-number-input package. It was the only UMD module among the
+// vendored libraries, and its require("vue") made esbuild emit a shim that throws at
+// runtime. It was used in exactly one place -- the brew setpoint -- for a number
+// field with two buttons, which Bootstrap already styles.
+const numberInput = {
+    name: 'vue-number-input',
+    props: {
+        modelValue: { type: [Number, String], default: 0 },
+        min: { type: Number, default: Number.NEGATIVE_INFINITY },
+        max: { type: Number, default: Number.POSITIVE_INFINITY },
+        step: { type: Number, default: 1 },
+        id: { type: String, default: undefined },
+        name: { type: String, default: undefined },
+        center: Boolean,
+        controls: Boolean,
+    },
+    emits: ['update:modelValue'],
+    computed: {
+        // From the step, so 0.1 + 0.2 does not surface as 0.30000000000000004.
+        decimals() {
+            const s = String(this.step);
+            return s.includes('.') ? s.split('.')[1].length : 0;
+        },
+    },
+    methods: {
+        clamp(value) {
+            const n = Number(value);
+            if (Number.isNaN(n)) return this.modelValue;
+            return Number(Math.min(this.max, Math.max(this.min, n)).toFixed(this.decimals));
+        },
+        bump(direction) {
+            this.$emit('update:modelValue', this.clamp(Number(this.modelValue) + direction * this.step));
+        },
+        onInput(event) {
+            this.$emit('update:modelValue', this.clamp(event.target.value));
+        },
+    },
+    template: `
+        <div class="input-group">
+            <button v-if="controls" class="btn btn-outline-secondary" type="button"
+                    :disabled="Number(modelValue) <= min" @click="bump(-1)" tabindex="-1"
+                    aria-label="decrease">&minus;</button>
+            <input type="number" class="form-control" :class="{ 'text-center': center }"
+                   :id="id" :name="name" :min="min" :max="max" :step="step"
+                   :value="modelValue" @input="onInput" @change="onInput">
+            <button v-if="controls" class="btn btn-outline-secondary" type="button"
+                    :disabled="Number(modelValue) >= max" @click="bump(1)" tabindex="-1"
+                    aria-label="increase">+</button>
+        </div>
+    `,
+};
+
+vueApp.component(numberInput.name, numberInput);
 
 window.vueApp = vueApp
 window.dispatchEvent(appCreatedEvent)
@@ -558,7 +616,7 @@ document.querySelector('body').addEventListener('click', function (e) {
         //close popovers when clicking elsewhere
         if (e.target.parentElement.getAttribute("data-bs-toggle") !== "popover") {
             document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function(el) {
-                const popover = bootstrap.Popover.getInstance(el);
+                const popover = Popover.getInstance(el);
 
                 if (popover !== null) {
                     popover.hide();
@@ -569,7 +627,7 @@ document.querySelector('body').addEventListener('click', function (e) {
             e.preventDefault();
 
             // create new popover
-            const popover = bootstrap.Popover.getOrCreateInstance(e.target.parentElement);
+            const popover = Popover.getOrCreateInstance(e.target.parentElement);
             popover.show();
         }
     }

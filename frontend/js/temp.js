@@ -1,10 +1,10 @@
-// TODO: this might have a short race condition where readyState is complete but load has not yet fired
-if (document.readyState === 'complete') {
-    getTimeseries()
-}
-else {
-    window.addEventListener('load', getTimeseries)
-}
+import uPlot from '../vendor/uPlot.esm.js'
+
+// No side effects at module level: this file is part of the shared bundle, and only
+// the page that has the chart divs may start it. index.html calls initCharts().
+// Previously a top-level getTimeseries() would have fetched /timeseries on every page
+// load -- the endpoint that used to crash the firmware -- and then failed on the
+// pages without #chart-temperature.
 
 const maxValues = 600          // max number of data points to keep in memory
 const updateInterval = 1000    // expected ms between updates (from event source with new values)
@@ -332,14 +332,16 @@ function getSize(selector) {
 }
 
 // resize plots when window is resized
-window.addEventListener("resize", e => {
-    if (uplotTemp !== null) {
-        uplotTemp.setSize(getSize(chartDiv));
-    }
-    if (uplotHeater !== null) {
-        uplotHeater.setSize(getSize(heaterDiv));
-    }
-});
+function registerResizeHandler() {
+    window.addEventListener("resize", e => {
+        if (uplotTemp !== null) {
+            uplotTemp.setSize(getSize(chartDiv));
+        }
+        if (uplotHeater !== null) {
+            uplotHeater.setSize(getSize(heaterDiv));
+        }
+    });
+}
 
 
 // get initial history data from server
@@ -363,38 +365,52 @@ function getTimeseries() {
 }
 
 // listen to events to update data from endpoints
-if (!!window.EventSource) {
-    var source = new EventSource('/events')
+function subscribeToEvents() {
+    if (!!window.EventSource) {
+        var source = new EventSource('/events')
 
-    source.addEventListener(
-        'open',
-        function (e) {
-            console.log("Event source connected")
-        },
-        false
-    )
+        source.addEventListener(
+            'open',
+            function (e) {
+                console.log("Event source connected")
+            },
+            false
+        )
 
-    source.addEventListener(
-        'error',
-        function (e) {
-            if (e.target.readyState != EventSource.OPEN) {
-                console.log("Events source disconnected")
-            }
-        },
-        false
-    )
+        source.addEventListener(
+            'error',
+            function (e) {
+                if (e.target.readyState != EventSource.OPEN) {
+                    console.log("Events source disconnected")
+                }
+            },
+            false
+        )
 
-    source.addEventListener(
-        'new_temps',
-        function (e) {
-            var myObj = JSON.parse(e.data)
+        source.addEventListener(
+            'new_temps',
+            function (e) {
+                var myObj = JSON.parse(e.data)
             
-            // add new data to existing for plotting            
-            addPlotData(myObj)
+                // add new data to existing for plotting            
+                addPlotData(myObj)
 
-            // update current temp value on index page
-            document.getElementById("varTEMP").innerText = myObj["currentTemp"].toFixed(1)
-        },
-        false
-    )
+                // update current temp value on index page
+                document.getElementById("varTEMP").innerText = myObj["currentTemp"].toFixed(1)
+            },
+            false
+        )
+}
+}
+
+// Entry point for the chart page. Guarded on the divs so a stray call elsewhere is a
+// no-op rather than an exception from uPlot on a null element.
+window.initCharts = function initCharts() {
+    if (!document.getElementById(chartDiv) || !document.getElementById(heaterDiv)) {
+        return
+    }
+
+    registerResizeHandler()
+    subscribeToEvents()
+    getTimeseries()
 }

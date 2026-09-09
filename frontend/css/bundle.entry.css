@@ -1,0 +1,6 @@
+/* One stylesheet for every page. The font references in fontawesome.min.css are
+   relative (../webfonts/...) and the bundle lands under /css/ again, so they still
+   resolve -- which is why the font files stay external. */
+@import "../vendor/bootstrap.min.css";
+@import "../vendor/fontawesome.min.css";
+@import "../vendor/uPlot.min.css";

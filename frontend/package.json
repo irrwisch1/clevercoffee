@@ -1,0 +1,11 @@
+{
+  "name": "clevercoffee-frontend-libs",
+  "private": true,
+  "description": "Declares the pinned versions of the libraries vendored in vendor/. Not needed to build the firmware -- see update-libs.sh.",
+  "dependencies": {
+    "bootstrap": "5.2.3",
+    "uplot": "1.6.28",
+    "vue": "3.2.47",
+    "@fortawesome/fontawesome-free": "6.2.1"
+  }
+}
