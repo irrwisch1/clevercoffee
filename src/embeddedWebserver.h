@@ -274,6 +274,20 @@ inline void serverSetup() {
                 limit = request->getParam("limit")->value().toInt();
             }
 
+            // Clamp what a caller can ask for. The response is written into a cbuf that
+            // grows by resizeAdd(), one value at a time -- an unbounded limit means
+            // thousands of reallocations of a steadily growing block, which fragments
+            // the heap until an allocation fails, and operator new throws here where
+            // nothing catches it. Asking for more than the registry holds cannot return
+            // more anyway. The web UI pages with limit=5 and is unaffected.
+            if (limit > static_cast<int>(parameters.size())) {
+                limit = static_cast<int>(parameters.size());
+            }
+
+            if (limit < 0) {
+                limit = 0;
+            }
+
             AsyncResponseStream* response = request->beginResponseStream("application/json");
             response->print("{\"parameters\":[");
 
