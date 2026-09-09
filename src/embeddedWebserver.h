@@ -86,22 +86,10 @@ inline int mod(const int a, const int b) {
 // rounds a number to 2 decimal places
 // example: round(3.14159) -> 3.14
 // (less characters when serialized to json)
+extern const char sysVersion[64];
+
 inline double round2(const double value) {
     return std::round(value * 100.0) / 100.0;
-}
-
-inline String getValue(const String& varName) {
-    try {
-        const auto e = ParameterRegistry::getInstance().getParameterById(varName.c_str());
-
-        if (e == nullptr) {
-            return "(unknown variable " + varName + ")";
-        }
-
-        return e->getFormattedValue();
-    } catch (const std::out_of_range&) {
-        return "(unknown variable " + varName + ")";
-    }
 }
 
 inline void paramToJson(const String& name, const std::shared_ptr<Parameter>& param, JsonVariant doc) {
@@ -160,15 +148,6 @@ inline void paramToJson(const String& name, const std::shared_ptr<Parameter>& pa
 
     doc["min"] = param->getMinValue();
     doc["max"] = param->getMaxValue();
-}
-
-inline String staticProcessor(const String& var) {
-    // try replacing var for variables in ParameterRegistry
-    if (var.startsWith("VAR_SHOW_")) {
-        return getValue(var.substring(9)); // cut off "VAR_SHOW_"
-    }
-
-    return String();                       // returns empty if not found
 }
 
 inline void serverSetup() {
@@ -404,6 +383,12 @@ inline void serverSetup() {
         request->send(200, "application/json", helpJson);
     });
 
+    // Replaces the %VAR_SHOW_VERSION% template placeholder. With it gone, the pages
+    // need no template processor and can be served static and pre-compressed.
+    server.on("/version", HTTP_GET, [](AsyncWebServerRequest* request) {
+        request->send(200, "text/plain", sysVersion);
+    });
+
     server.on("/temperatures", HTTP_GET, [](AsyncWebServerRequest* request) {
         AsyncResponseStream* response = request->beginResponseStream("application/json");
         response->print('{');
@@ -612,7 +597,7 @@ inline void serverSetup() {
     server.serveStatic("/img", LittleFS, "/img/", "max-age=604800"); // cache for one week
     server.serveStatic("/webfonts", LittleFS, "/webfonts/", "max-age=604800");
     server.serveStatic("/manifest.json", LittleFS, "/manifest.json", "max-age=604800");
-    server.serveStatic("/", LittleFS, "/html/", "max-age=604800").setDefaultFile("index.html").setTemplateProcessor(staticProcessor);
+    server.serveStatic("/", LittleFS, "/html/", "max-age=604800").setDefaultFile("index.html");
 
     server.begin();
 
