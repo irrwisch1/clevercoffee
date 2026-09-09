@@ -6,12 +6,16 @@ import { Collapse, Popover } from '../vendor/bootstrap.esm.js'
 import { initCharts } from './temp.js'
 void Collapse // side-effect import; keep the binding
 
-// The five tabs of the single page, and the /parameters filter each one needs.
+// The five tabs of the single page, and what each one needs from /parameters.
 // null means the tab shows no parameters and needs no request.
-const tabFilters = {
-    home: '',
-    settings: 'behavior',
-    hardware: 'hardware',
+//
+// Home names its six: the section ranges they live in hold twelve, so asking by
+// section fetched four times as much as it shows -- and saving on that tab then wrote
+// all twelve back.
+const tabQueries = {
+    home: 'names=pid.enabled,brew.setpoint,STEAM_MODE,BACKFLUSH_ON,TARE_ON,CALIBRATION_ON',
+    settings: 'filter=behavior',
+    hardware: 'filter=hardware',
     system: null,
     about: null,
 }
@@ -24,11 +28,10 @@ const vueApp = createApp({
             parametersHelpTexts: [],
             isPostingForm: false,
             showPostSucceeded: false,
-            filter: '',
 
             // Tab routing
             tab: 'home',
-            loadedFilter: null,
+            loadedQuery: null,
             version: '',
 
             // Reboot notification
@@ -58,21 +61,19 @@ const vueApp = createApp({
     methods: {
         tabFromHash() {
             const tab = window.location.hash.replace(/^#\/?/, '');
-            return tab in tabFilters ? tab : 'home';
+            return tab in tabQueries ? tab : 'home';
         },
 
         selectTab(tab) {
             this.tab = tab;
 
-            // Home needs every parameter, Settings and Hardware a filtered subset. Only
-            // refetch when the filter actually differs, so switching back and forth
-            // between System and About costs nothing.
-            const filter = tabFilters[tab];
+            // Only refetch when the query actually differs, so switching back and
+            // forth between System and About costs nothing.
+            const query = tabQueries[tab];
 
-            if (filter !== null && filter !== this.loadedFilter) {
-                this.loadedFilter = filter;
-                this.filter = filter;
-                this.fetchParameters(filter);
+            if (query !== null && query !== this.loadedQuery) {
+                this.loadedQuery = query;
+                this.fetchParameters(query);
             }
 
             if (tab === 'about' && !this.version) {
@@ -94,7 +95,7 @@ const vueApp = createApp({
             }
         },
 
-        async fetchParameters(filter = '') {
+        async fetchParameters(query = '') {
             this.parameters = [];
             this.originalValues = {}; // Reset original values
             let offset = 0;
@@ -105,8 +106,8 @@ const vueApp = createApp({
                 // Build URL with dynamic filter, offset, and limit
                 let url = `/parameters?offset=${offset}&limit=${limit}`;
 
-                if (filter) {
-                    url += `&filter=${encodeURIComponent(filter)}`;
+                if (query) {
+                    url += '&' + query;
                 }
 
                 try {
@@ -205,7 +206,7 @@ const vueApp = createApp({
                 })
                 .then(data => {
                     // Parameters saved successfully - now re-fetch to get updated show conditions
-                    this.fetchParameters(this.filter);
+                    this.fetchParameters(this.loadedQuery);
 
                     // Show reboot banner only if reboot-required params actually changed
                     if (rebootParamsChanged.length > 0) {
