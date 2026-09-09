@@ -1,0 +1,8 @@
+/* Sizing for the inline SVG icons. The sprite itself sits in the page header, so
+   the icons cost no request and inherit the surrounding text colour. */
+.icon {
+    width: 1em;
+    height: 1em;
+    fill: currentColor;
+    vertical-align: -0.125em;
+}

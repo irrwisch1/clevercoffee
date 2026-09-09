@@ -32,12 +32,6 @@ copy node_modules/bootstrap/dist/js/bootstrap.esm.min.js bootstrap.esm.js
 copy node_modules/uplot/dist/uPlot.esm.js              uPlot.esm.js
 copy node_modules/bootstrap/dist/css/bootstrap.min.css bootstrap.min.css
 copy node_modules/uplot/dist/uPlot.min.css             uPlot.min.css
-copy node_modules/@fortawesome/fontawesome-free/css/all.min.css fontawesome.min.css
-
-echo "-- fonts ..."
-for f in fa-solid-900 fa-regular-400; do
-    copy "node_modules/@fortawesome/fontawesome-free/webfonts/$f.woff2" "../webfonts/$f.woff2"
-done
 
 # bootstrap.esm imports @popperjs/core, which ships as a tree of small modules --
 # flatten it into one vendored file so the firmware build needs no node_modules.

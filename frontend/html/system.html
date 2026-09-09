@@ -18,7 +18,7 @@
                             <h5 class="card-title text-warning mb-3">Restart Machine</h5>
                             <p class="card-text text-muted">Restart the machine to apply changes or resolve issues.</p>
                             <button @click="confirmRestart" class="btn btn-warning btn-lg">
-                                <span class="fa-solid fa-power-off me-2"></span>
+                                <svg class="icon me-2" aria-hidden="true"><use href="#i-power-off"/></svg>
                                 Restart
                             </button>
                         </div>
@@ -33,11 +33,11 @@
                             </p>
                             <div class="d-grid gap-2 d-md-block">
                                 <button class="btn btn-danger btn-lg me-2" @click="confirmFactoryReset">
-                                    <span class="fa-solid fa-exclamation-triangle me-2"></span>
+                                    <svg class="icon me-2" aria-hidden="true"><use href="#i-triangle-exclamation"/></svg>
                                     Factory Reset
                                 </button>
                                 <button class="btn btn-warning btn-lg" @click="confirmReset">
-                                    <span class="fa-solid fa-wifi me-2"></span>
+                                    <svg class="icon me-2" aria-hidden="true"><use href="#i-wifi"/></svg>
                                     Reset WiFi
                                 </button>
                             </div>
@@ -59,7 +59,7 @@
                             <h5 class="card-title text-success mb-3">Configuration Backup</h5>
                             <p class="card-text text-muted">Download your current configuration as a backup file.</p>
                             <a href="/download/config" class="btn btn-success btn-lg" download="clevercoffee-config.json">
-                                <span class="fa-solid fa-download me-2"></span>
+                                <svg class="icon me-2" aria-hidden="true"><use href="#i-download"/></svg>
                                 Download Config
                             </a>
                         </div>
@@ -81,7 +81,7 @@
                             <button @click="uploadConfig"
                                     class="btn btn-warning btn-lg"
                                     :disabled="!selectedFile || isUploading">
-                                <span class="fa-solid fa-upload me-2"></span>
+                                <svg class="icon me-2" aria-hidden="true"><use href="#i-upload"/></svg>
                                 <span v-if="isUploading">Uploading...</span>
                                 <span v-else>Upload Config</span>
                             </button>

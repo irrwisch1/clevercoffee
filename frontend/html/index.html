@@ -50,7 +50,7 @@
                                         <label class="form-label me-1 col-form-label" :for="'var'+param.name">{{param.displayName}}</label>
                                         <template v-if="param.hasHelpText">
                                             <a href="#" role="button" @mouseover="fetchHelpText(param.name)" data-bs-toggle="popover" data-bs-html="true" :data-bs-original-title="parametersHelpTexts[param.name]">
-                                                <span class="fa-solid fa-question-circle"></span>
+                                                <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
                                             </a>
                                         </template>
                                         <vue-number-input :step="0.1" :id="'var'+param.name" :name="'var'+param.name" v-model="param.value" :min="0" :max="150" style="min-width: 150px; max-width: 200px;   touch-action: manipulation;" center controls></vue-number-input>
@@ -59,7 +59,7 @@
                             </template>
                             <div class="col-md-3 pt-5 pe-5 clearfix">
                                 <button type="submit" class="btn btn-primary float-end" :disabled="isPostingForm">
-                                    <span v-show="showPostSucceeded" class="fa-solid fa-check me-1"></span>
+                                    <svg v-show="showPostSucceeded" class="icon me-1" aria-hidden="true"><use href="#i-check"/></svg>
                                     <span v-show="isPostingForm" class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
                                     Save
                                 </button>
@@ -162,7 +162,7 @@
                     <h5 class="card-title">
                         Temperature
                         <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the boiler temperature. Drag to zoom, double-click to reset zoom again.">
-                            <span class="fa-solid fa-question-circle"></span>
+                            <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
                         </a>
                     </h5>
                 </div>
@@ -175,7 +175,7 @@
                     <h5 class="card-title">
                         Heater Output
                         <a href="#" role="button" data-bs-toggle="popover" data-bs-html="true" data-bs-original-title="History of the controlled heater power. Drag to zoom, double-click to reset zoom again.">
-                            <span class="fa-solid fa-question-circle"></span>
+                            <svg class="icon" aria-hidden="true"><use href="#i-circle-question"/></svg>
                         </a>
                     </h5>
                 </div>
