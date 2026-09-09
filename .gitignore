@@ -16,3 +16,7 @@ platformio_extra.ini
 
 # ignore flash package
 CleverCoffee_Flash_Package
+
+# Only needed by frontend/update-libs.sh, never by the build.
+frontend/node_modules/
+frontend/package-lock.json

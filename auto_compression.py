@@ -12,17 +12,10 @@ Other files will be copied as-is to the data directory.
 TODO: Handle the files which are templated.
 """
 
+# Only the fonts are left: bundle_frontend.py builds the JS and CSS and writes them
+# to data/ compressed itself. Keeping the same output in two places is the coupling
+# that already went wrong once with the HTML.
 FILES_TO_COMPRESS = [
-    "css/bootstrap-5.2.3.min.css",
-    "css/fontawesome-6.2.1.min.css",
-    "css/uPlot.min.css",
-    "js/app.js",
-    "js/vue.3.2.47.min.js",
-    "js/bootstrap.bundle.5.2.3.min.js",
-    "js/uPlot.1.6.28.min.js",
-    "js/vue-number-input.min.js",
-    "js/temp.js",
-    "js/load-libs.js",
     "webfonts/fa-solid-900.woff2",
     "webfonts/fa-regular-400.woff2",
 ]
@@ -35,6 +28,11 @@ FILES_TO_SKIP = [
     "html/parameters.html",
     "html/system.html",
     "html_fragments/header.html",
+    # Bundle sources, not shipped individually.
+    "js/app.js",
+    "js/temp.js",
+    "js/bundle.entry.js",
+    "css/bundle.entry.css",
 ]
 
 FRONTEND_DIR = "frontend"
@@ -76,6 +74,10 @@ def main():
     found_files = set()
 
     for root, dirs, files in os.walk(FRONTEND_DIR):
+        # vendor/ holds the source libraries. They reach the device through the
+        # bundles, never on their own.
+        dirs[:] = [d for d in dirs if d != "vendor"]
+
         for file in files:
             rel_dir = os.path.relpath(root, FRONTEND_DIR)
             rel_file = os.path.join(rel_dir, file) if rel_dir != "." else file
