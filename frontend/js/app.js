@@ -1,10 +1,9 @@
-// Collapse is imported for its side effect, not for the name: importing the module is
-// what registers Bootstrap's click delegation for data-bs-toggle="collapse", which the
-// navbar toggle depends on. Popover is constructed by hand further down.
+// Importing Collapse also registers Bootstrap's click delegation for
+// data-bs-toggle="collapse", which the navbar toggle button depends on. Popover is
+// constructed by hand further down.
 import { createApp } from '../vendor/vue.esm.js'
 import { Collapse, Popover } from '../vendor/bootstrap.esm.js'
 import { initCharts } from './temp.js'
-void Collapse // side-effect import; keep the binding
 
 // The five tabs of the single page, and what each one needs from /parameters.
 // null means the tab shows no parameters and needs no request.
@@ -78,6 +77,16 @@ const vueApp = createApp({
 
             if (tab === 'about' && !this.version) {
                 this.fetchVersion();
+            }
+
+            // On a narrow screen the navbar is collapsed and stays open over the tab
+            // that was just picked. Closing it from here rather than with
+            // data-bs-toggle on the links: Bootstrap's collapse delegation calls
+            // preventDefault() on <a> elements, which would swallow the hash change.
+            const navbar = document.getElementById('navbarToggleExternalContent');
+
+            if (navbar) {
+                Collapse.getOrCreateInstance(navbar, { toggle: false }).hide();
             }
 
             // uPlot has to measure the chart containers, so wait until v-show has made
