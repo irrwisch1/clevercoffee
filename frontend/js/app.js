@@ -617,17 +617,22 @@ document.querySelector('body').addEventListener('click', function (e) {
         // click on the glyph reports the <use> as target, so the trigger is two levels up.
         const trigger = e.target.closest('[data-bs-toggle="popover"]');
 
-        //close popovers when clicking elsewhere
-        if (trigger === null) {
-            document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function(el) {
-                const popover = Popover.getInstance(el);
+        // Close every open popover except the one that was just clicked. This used to
+        // run only when the click landed next to an icon, so clicking a second icon
+        // left the first one standing.
+        document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function(el) {
+            if (el === trigger) {
+                return;
+            }
 
-                if (popover !== null) {
-                    popover.hide();
-                }
-            });
-        }
-        else {
+            const popover = Popover.getInstance(el);
+
+            if (popover !== null) {
+                popover.hide();
+            }
+        });
+
+        if (trigger !== null) {
             e.preventDefault();
 
             // create new popover
