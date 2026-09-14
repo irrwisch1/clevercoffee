@@ -664,8 +664,12 @@ function groupBy(array, key) {
 document.querySelector('body').addEventListener('click', function (e) {
     //if click was not on an opened popover (ignore those)
     if (!e.target.classList.contains("popover-header")) {
+        // closest() rather than parentElement: the icon is <a><svg><use/></svg></a>, and a
+        // click on the glyph reports the <use> as target, so the trigger is two levels up.
+        const trigger = e.target.closest('[data-bs-toggle="popover"]');
+
         //close popovers when clicking elsewhere
-        if (e.target.parentElement.getAttribute("data-bs-toggle") !== "popover") {
+        if (trigger === null) {
             document.querySelectorAll('[data-bs-toggle="popover"]').forEach(function(el) {
                 const popover = Popover.getInstance(el);
 
@@ -678,7 +682,7 @@ document.querySelector('body').addEventListener('click', function (e) {
             e.preventDefault();
 
             // create new popover
-            const popover = Popover.getOrCreateInstance(e.target.parentElement);
+            const popover = Popover.getOrCreateInstance(trigger);
             popover.show();
         }
     }
