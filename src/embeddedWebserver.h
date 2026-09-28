@@ -601,6 +601,9 @@ inline void serverSetup() {
 
         const bool removed = LittleFS.remove("/config.json");
 
+        // otherwise the next boot restores the mirror
+        Config::clearMirror();
+
         request->send(200, "text/plain", removed ? "Factory reset. Restarting..." : "Could not delete config.json. Restarting...");
 
         if (u8g2 != nullptr) {

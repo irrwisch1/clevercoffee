@@ -14,6 +14,7 @@
 #include "hardware/Switch.h"
 #include <ArduinoJson.h>
 #include <LittleFS.h>
+#include <Preferences.h>
 #include <map>
 #include <utility>
 
@@ -32,6 +33,19 @@ class Config {
 
             // Check if config file exists
             if (!LittleFS.exists(CONFIG_FILE)) {
+                // uploadfs wipes config.json, try the NVS mirror before the defaults
+                if (restoreFromMirror()) {
+                    LOG(WARNING, "Config file missing, restored from the NVS mirror");
+
+                    if (!save()) {
+                        return false;
+                    }
+
+                    initializeConfigDefs();
+
+                    return true;
+                }
+
                 LOG(INFO, "Config file not found, creating from defaults");
 
                 createDefaults();
@@ -49,6 +63,9 @@ class Config {
             }
 
             initializeConfigDefs();
+
+            // also on boot, so an installation nobody changes has a copy too
+            mirrorToNvs();
 
             return true;
         }
@@ -107,6 +124,8 @@ class Config {
 
             file.close();
             LOG(INFO, "Configuration saved successfully");
+
+            mirrorToNvs();
 
             return true;
         }
@@ -173,6 +192,84 @@ class Config {
                 true);
         }
 
+        /**
+         * @brief Keep a copy of the configuration in NVS, which uploadfs does not touch
+         *
+         * Only written when the content differs.
+         */
+        void mirrorToNvs() const {
+            String json;
+            serializeJson(_doc, json);
+
+            Preferences prefs;
+
+            if (!prefs.begin(NVS_NAMESPACE, false)) {
+                LOG(WARNING, "Could not open NVS to mirror the config");
+                return;
+            }
+
+            bool unchanged = false;
+
+            if (const size_t stored = prefs.getBytesLength(NVS_KEY); stored == json.length()) {
+                std::unique_ptr<char[]> buf(new char[stored + 1]);
+                prefs.getBytes(NVS_KEY, buf.get(), stored);
+                buf[stored] = '\0';
+                unchanged = json == buf.get();
+            }
+
+            if (!unchanged && prefs.putBytes(NVS_KEY, json.c_str(), json.length()) != json.length()) {
+                LOG(WARNING, "Failed to mirror the config to NVS");
+            }
+
+            prefs.end();
+        }
+
+        /**
+         * @brief Drop the NVS mirror, for the factory reset
+         */
+        static void clearMirror() {
+            Preferences prefs;
+
+            if (!prefs.begin(NVS_NAMESPACE, false)) {
+                return;
+            }
+
+            prefs.clear();
+            prefs.end();
+        }
+
+        /**
+         * @brief Load the configuration back from the NVS mirror
+         *
+         * @return true if a mirror existed and could be parsed
+         */
+        bool restoreFromMirror() {
+            Preferences prefs;
+
+            if (!prefs.begin(NVS_NAMESPACE, true)) {
+                return false;
+            }
+
+            const size_t len = prefs.getBytesLength(NVS_KEY);
+
+            if (len == 0) {
+                prefs.end();
+                return false;
+            }
+
+            std::unique_ptr<char[]> buf(new char[len + 1]);
+            prefs.getBytes(NVS_KEY, buf.get(), len);
+            buf[len] = '\0';
+            prefs.end();
+
+            if (const DeserializationError error = deserializeJson(_doc, buf.get())) {
+                LOGF(WARNING, "NVS mirror is unusable: %s", error.c_str());
+                return false;
+            }
+
+            return true;
+        }
+
     private:
         template <typename Func>
         static auto navigatePath(JsonVariantConst root, const String& path, Func&& leafHandler) {
@@ -226,6 +323,8 @@ class Config {
         }
 
         inline static auto CONFIG_FILE = "/config.json";
+        inline static auto NVS_NAMESPACE = "ccconfig";
+        inline static auto NVS_KEY = "json";
 
         JsonDocument _doc;
 
