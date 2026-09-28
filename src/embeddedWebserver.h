@@ -8,6 +8,7 @@
 #pragma once
 
 #include <Arduino.h>
+#include <memory>
 
 #include "FS.h"
 #include <AsyncTCP.h>
@@ -437,44 +438,59 @@ inline void serverSetup() {
     });
 
     server.on("/timeseries", HTTP_GET, [](AsyncWebServerRequest* request) {
-        AsyncResponseStream* response = request->beginResponseStream("application/json");
-        response->addHeader("Connection", "close"); // Force connection close
+        // Chunked, so a response never needs more memory than the server's send buffer
+        struct TsState {
+                int start = 0;
+                int count = 0;
+                int next = 0; // next token to send
+        };
 
-        response->print('{');
+        auto st = std::make_shared<TsState>();
+        // count before index, sendTempEvent() updates the index first
+        st->count = historyValueCount;
+        st->start = mod(historyCurrentIndex - st->count, HISTORY_LENGTH);
 
-        response->print("\"currentTemps\":[");
-        bool first = true;
+        static constexpr size_t tokenCap = 24;
+        static_assert(sizeof("],\"heaterPowers\":[") <= tokenCap, "token buffer too small");
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[0][i] * 0.01f, 2);
-        }
+        AsyncWebServerResponse* response = request->beginChunkedResponse("application/json", [st](uint8_t* buffer, size_t maxLen, size_t) -> size_t {
+            static constexpr const char* headers[] = {"{\"currentTemps\":[", "],\"targetTemps\":[", "],\"heaterPowers\":["};
 
-        response->print("],");
+            // Tokens: per array a header and count values, then "]}"
+            const int perArray = st->count + 1;
+            const int last = 3 * perArray;
+            size_t written = 0;
 
-        response->print("\"targetTemps\":[");
-        first = true;
+            // Whole tokens only. maxLen is at least 710 bytes, a token at most 18.
+            while (st->next <= last) {
+                const int k = st->next;
+                char tok[tokenCap];
+                size_t n;
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[1][i] * 0.01f, 2);
-        }
+                if (k == last) {
+                    n = snprintf(tok, sizeof(tok), "]}");
+                }
+                else if (k % perArray == 0) {
+                    n = snprintf(tok, sizeof(tok), "%s", headers[k / perArray]);
+                }
+                else {
+                    const int i = k % perArray - 1;
+                    n = snprintf(tok, sizeof(tok), "%s%.2f", i > 0 ? "," : "", tempHistory[k / perArray][mod(st->start + i, HISTORY_LENGTH)] * 0.01f);
+                }
 
-        response->print("],");
+                if (written + n > maxLen) {
+                    break;
+                }
 
-        response->print("\"heaterPowers\":[");
-        first = true;
+                memcpy(buffer + written, tok, n);
+                written += n;
+                st->next++;
+            }
 
-        for (int i = mod(historyCurrentIndex - historyValueCount, HISTORY_LENGTH); i != mod(historyCurrentIndex, HISTORY_LENGTH); i = mod(i + 1, HISTORY_LENGTH)) {
-            if (!first) response->print(',');
-            first = false;
-            response->print(tempHistory[2][i] * 0.01f, 2);
-        }
+            return written; // 0 ends the response
+        });
 
-        response->print("]}");
-
+        response->addHeader("Connection", "close");
         request->send(response);
     });
 
